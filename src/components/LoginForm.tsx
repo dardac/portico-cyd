@@ -82,19 +82,13 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>
       {errors.form && (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
+        <div role="alert" className="alert-error">
           {errors.form}
         </div>
       )}
 
       {isSuccess && (
-        <div
-          role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-        >
+        <div role="status" className="alert-success">
           Acceso correcto. El panel principal llegará en el siguiente paso.
         </div>
       )}
@@ -108,10 +102,7 @@ export function LoginForm() {
       />
 
       <div>
-        <label
-          htmlFor="password"
-          className="mb-1.5 block text-sm font-medium text-stone-700"
-        >
+        <label htmlFor="password" className="field-label">
           Contraseña
         </label>
         <div className="relative">
@@ -132,30 +123,26 @@ export function LoginForm() {
             disabled={isSubmitting}
             aria-invalid={Boolean(errors.password)}
             aria-describedby={errors.password ? "password-error" : undefined}
-            className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 pr-12 text-base text-stone-900 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-amber-700 focus:ring-2 focus:ring-amber-700/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="field-input pr-10"
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
             disabled={isSubmitting}
-            className="absolute inset-y-0 right-0 flex items-center px-4 text-sm font-medium text-stone-500 transition hover:text-stone-800 disabled:opacity-60"
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-xs font-medium text-stone-400 transition hover:text-stone-700 disabled:opacity-60"
             aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
           >
             {showPassword ? "Ocultar" : "Ver"}
           </button>
         </div>
         {errors.password && (
-          <p id="password-error" className="mt-1.5 text-sm text-red-600">
+          <p id="password-error" className="field-error">
             {errors.password}
           </p>
         )}
       </div>
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full rounded-xl bg-amber-800 px-4 py-3.5 text-base font-semibold text-white shadow-sm transition hover:bg-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-700 focus:ring-offset-2 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
-      >
+      <button type="submit" disabled={isSubmitting} className="btn-primary">
         {isSubmitting ? "Verificando…" : "Iniciar sesión"}
       </button>
     </form>

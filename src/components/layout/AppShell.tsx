@@ -31,13 +31,13 @@ export function AppShell({ session, children }: AppShellProps) {
       : `Apto. ${session.apartmentCode}`;
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-gradient-to-b from-stone-100 via-amber-50/30 to-stone-100">
-      <header className="sticky top-0 z-40 border-b border-stone-200/80 bg-white/90 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+    <div className="app-bg">
+      <header className="sticky top-0 z-40 border-b border-stone-200/60 bg-white/80 backdrop-blur-lg">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200/70 text-stone-500 transition hover:border-stone-300 hover:bg-stone-50/80 hover:text-stone-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700/40 md:hidden"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200/70 text-stone-500 transition hover:border-stone-300 hover:bg-stone-50/80 hover:text-stone-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900/20 md:hidden"
               aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
@@ -56,27 +56,32 @@ export function AppShell({ session, children }: AppShellProps) {
               </div>
             </button>
 
-            <div>
-              <p className="text-sm font-semibold text-stone-900">
-                Pórtico del Ávila
-              </p>
-              <p className="hidden text-xs text-stone-500 sm:block">
-                Torres C y D
-              </p>
+            <div className="flex items-center gap-2.5">
+              {/* <div className="hidden h-7 w-7 items-center justify-center rounded-md bg-stone-900 text-[10px] font-semibold text-white sm:flex">
+                PA
+              </div> */}
+              <div>
+                <p className="text-sm font-semibold tracking-tight text-stone-900">
+                  Pórtico del Ávila
+                </p>
+                <p className="hidden text-xs text-stone-400 sm:block">
+                  Torres C y D
+                </p>
+              </div>
             </div>
           </div>
 
-          <nav className="hidden items-center gap-6 md:flex">
+          <nav className="hidden items-center gap-1 md:flex">
             {NAV_ITEMS.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`text-sm transition ${
+                  className={`px-3 py-1.5 text-sm transition ${
                     isActive
-                      ? "font-semibold text-amber-900"
-                      : "font-medium text-stone-500 hover:text-stone-900"
+                      ? "font-medium text-brick"
+                      : "font-medium text-stone-500 hover:text-stone-800"
                   }`}
                 >
                   {item.label}
@@ -85,15 +90,15 @@ export function AppShell({ session, children }: AppShellProps) {
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
-            <span className="hidden max-w-[10rem] truncate text-right text-xs text-stone-500 sm:block">
+          <div className="flex items-center gap-2.5">
+            <span className="hidden max-w-[10rem] truncate text-right text-xs text-stone-400 sm:block">
               {sessionLabel}
             </span>
             <button
               type="button"
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="rounded-xl border border-stone-200 px-3 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-60"
+              className="btn-ghost"
             >
               {isLoggingOut ? "Saliendo…" : "Salir"}
             </button>
@@ -101,9 +106,9 @@ export function AppShell({ session, children }: AppShellProps) {
         </div>
 
         {menuOpen && (
-          <nav className="border-t border-stone-200 px-4 py-3 md:hidden">
-            <p className="mb-3 text-xs text-stone-500">{sessionLabel}</p>
-            <div className="space-y-2">
+          <nav className="border-t border-stone-200/60 px-4 py-3 md:hidden">
+            <p className="mb-2 text-xs text-stone-400">{sessionLabel}</p>
+            <div className="space-y-0.5">
               {NAV_ITEMS.map((item) => {
                 const isActive = pathname === item.href;
                 return (
@@ -111,10 +116,10 @@ export function AppShell({ session, children }: AppShellProps) {
                     key={item.href}
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
-                    className={`block py-2 text-sm transition ${
+                    className={`block px-3 py-2 text-sm transition ${
                       isActive
-                        ? "font-semibold text-amber-900"
-                        : "font-medium text-stone-500 hover:text-stone-900"
+                        ? "font-medium text-brick"
+                        : "font-medium text-stone-500 hover:text-stone-800"
                     }`}
                   >
                     {item.label}
@@ -126,7 +131,7 @@ export function AppShell({ session, children }: AppShellProps) {
         )}
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
         {children}
       </main>
     </div>

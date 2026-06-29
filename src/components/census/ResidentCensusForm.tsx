@@ -133,61 +133,52 @@ export function ResidentCensusForm() {
 
   if (isLoading) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-8 text-center text-stone-500">
+      <div className="app-card py-16 text-center text-sm text-stone-400">
         Cargando censo de hoy…
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-8">
+    <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-stone-900">Censo diario</h1>
+        <h1 className="page-title mt-0">Censo diario</h1>
         {censusDate && (
-          <p className="mt-1 text-sm text-stone-600">
-            {formatDateInCaracas(censusDate)}
-          </p>
+          <p className="page-subtitle">{formatDateInCaracas(censusDate)}</p>
         )}
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8"
-      >
-        {error && (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </div>
-        )}
+      <form onSubmit={handleSubmit} className="app-card space-y-6">
+        {error && <div className="alert-error">{error}</div>}
 
         {isPrefilled && prefillFromDate && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="alert-info">
             Respuesta del {formatDateInCaracas(prefillFromDate)} autocompletada.
             Revísala y guarda si es correcta, o edítala si cambió.
           </div>
         )}
 
         {success && (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="alert-success">
             Respuesta guardada. Puedes editarla cuando quieras hoy.
           </div>
         )}
 
         <fieldset>
-          <legend className="text-base font-medium text-stone-900">
+          <legend className="text-sm font-medium text-stone-800">
             ¿Pernoctará en el día de hoy en las residencias?
           </legend>
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-3 grid grid-cols-2 gap-2">
             {[
               { value: true, label: "Sí" },
               { value: false, label: "No" },
             ].map((option) => (
               <label
                 key={String(option.value)}
-                className={`flex cursor-pointer items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                className={`choice-card ${
                   willStay === option.value
-                    ? "border-amber-700 bg-amber-50 text-amber-900"
-                    : "border-stone-200 text-stone-700 hover:border-stone-300"
+                    ? "choice-card-active"
+                    : "choice-card-inactive"
                 }`}
               >
                 <input
@@ -209,10 +200,7 @@ export function ResidentCensusForm() {
 
         {willStay && (
           <div>
-            <label
-              htmlFor="peopleCount"
-              className="mb-1.5 block text-sm font-medium text-stone-700"
-            >
+            <label htmlFor="peopleCount" className="field-label">
               ¿Cuántas personas pernoctarán?
             </label>
             <input
@@ -228,52 +216,48 @@ export function ResidentCensusForm() {
                 setPeopleCount(digits);
                 markEdited();
               }}
-              className="w-full rounded-xl border border-stone-200 px-4 py-3 text-base shadow-sm outline-none focus:border-amber-700 focus:ring-2 focus:ring-amber-700/20"
+              className="field-input"
               placeholder="Ej. 3"
             />
-            <p className="mt-1.5 text-sm text-stone-500">
-              Mínimo 1 persona, máximo 999.
-            </p>
+            <p className="field-hint">Mínimo 1 persona, máximo 999.</p>
           </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="w-full rounded-xl bg-amber-800 px-4 py-3.5 text-base font-semibold text-white transition hover:bg-amber-900 disabled:opacity-70"
-        >
-          {isSaving ? "Guardando…" : isPrefilled ? "Confirmar respuesta" : "Guardar respuesta"}
+        <button type="submit" disabled={isSaving} className="btn-primary">
+          {isSaving
+            ? "Guardando…"
+            : isPrefilled
+              ? "Confirmar respuesta"
+              : "Guardar respuesta"}
         </button>
       </form>
 
-      <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
-        <h2 className="text-lg font-semibold text-stone-900">Tu historial</h2>
-        <p className="mt-1 text-sm text-stone-600">
+      <section className="app-card">
+        <h2 className="section-title">Tu historial</h2>
+        <p className="mt-1 text-sm text-stone-500">
           Solo puedes ver las respuestas de tu apartamento.
         </p>
 
         {history.length === 0 ? (
-          <p className="mt-6 text-sm text-stone-500">
+          <p className="mt-6 text-sm text-stone-400">
             Aún no tienes días anteriores registrados.
           </p>
         ) : (
-          <ul className="mt-6 divide-y divide-stone-100">
+          <ul className="mt-5 divide-y divide-stone-100">
             {history.map((entry) => (
               <li
                 key={entry.censusDate}
-                className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0"
+                className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0"
               >
-                <div>
-                  <p className="text-sm font-medium text-stone-900">
-                    {formatDateInCaracas(entry.censusDate, {
-                      weekday: "short",
-                      year: "numeric",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-                <span className="shrink-0 text-sm text-stone-600">
+                <p className="text-sm font-medium text-stone-800">
+                  {formatDateInCaracas(entry.censusDate, {
+                    weekday: "short",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </p>
+                <span className="text-sm text-stone-500">
                   {formatResponse(entry)}
                 </span>
               </li>

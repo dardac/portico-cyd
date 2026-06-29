@@ -7,7 +7,7 @@ import {
 
 const PUBLIC_PATHS = ["/", "/admin"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = getSessionTokenFromRequest(request);
   const session = token ? await verifySessionToken(token) : null;

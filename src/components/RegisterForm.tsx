@@ -157,10 +157,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
     return (
       <form onSubmit={handleCheckApartment} className="space-y-5" noValidate>
         {errors.form && (
-          <div
-            role="alert"
-            className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-          >
+          <div role="alert" className="alert-error">
             {errors.form}
           </div>
         )}
@@ -173,11 +170,7 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           disabled={isSubmitting}
         />
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full rounded-xl bg-amber-800 px-4 py-3.5 text-base font-semibold text-white shadow-sm transition hover:bg-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-700 focus:ring-offset-2 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
-        >
+        <button type="submit" disabled={isSubmitting} className="btn-primary">
           {isSubmitting ? "Verificando…" : "Continuar"}
         </button>
       </form>
@@ -187,19 +180,13 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
   return (
     <form onSubmit={handleRegister} className="space-y-5" noValidate>
       {errors.form && (
-        <div
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
+        <div role="alert" className="alert-error">
           {errors.form}
         </div>
       )}
 
       {isSuccess && (
-        <div
-          role="status"
-          className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-        >
+        <div role="status" className="alert-success">
           Registro completado. Ya puedes iniciar sesión con tu apartamento y
           contraseña.
         </div>
@@ -216,16 +203,13 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         type="button"
         onClick={resetToApartmentStep}
         disabled={isSubmitting || isSuccess}
-        className="text-sm font-medium text-amber-800 transition hover:text-amber-900 disabled:opacity-60"
+        className="text-sm font-medium text-stone-500 underline decoration-stone-300 underline-offset-2 transition hover:text-stone-800 hover:decoration-stone-500 disabled:opacity-60"
       >
         Cambiar apartamento
       </button>
 
       <div>
-        <label
-          htmlFor="register-email"
-          className="mb-1.5 block text-sm font-medium text-stone-700"
-        >
+        <label htmlFor="register-email" className="field-label">
           Correo electrónico
         </label>
         <input
@@ -243,18 +227,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           }}
           disabled={isSubmitting || isSuccess}
           aria-invalid={Boolean(errors.email)}
-          className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-base text-stone-900 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-amber-700 focus:ring-2 focus:ring-amber-700/20 disabled:cursor-not-allowed disabled:opacity-60"
+          className="field-input"
         />
         {errors.email && (
-          <p className="mt-1.5 text-sm text-red-600">{errors.email}</p>
+          <p className="field-error">{errors.email}</p>
         )}
       </div>
 
       <div>
-        <label
-          htmlFor="register-phone"
-          className="mb-1.5 block text-sm font-medium text-stone-700"
-        >
+        <label htmlFor="register-phone" className="field-label">
           Teléfono
         </label>
         <input
@@ -272,18 +253,15 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           }}
           disabled={isSubmitting || isSuccess}
           aria-invalid={Boolean(errors.phone)}
-          className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 text-base text-stone-900 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-amber-700 focus:ring-2 focus:ring-amber-700/20 disabled:cursor-not-allowed disabled:opacity-60"
+          className="field-input"
         />
         {errors.phone && (
-          <p className="mt-1.5 text-sm text-red-600">{errors.phone}</p>
+          <p className="field-error">{errors.phone}</p>
         )}
       </div>
 
       <div>
-        <label
-          htmlFor="register-password"
-          className="mb-1.5 block text-sm font-medium text-stone-700"
-        >
+        <label htmlFor="register-password" className="field-label">
           Contraseña
         </label>
         <div className="relative">
@@ -302,27 +280,27 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
             }}
             disabled={isSubmitting || isSuccess}
             aria-invalid={Boolean(errors.password)}
-            className="w-full rounded-xl border border-stone-200 bg-white px-4 py-3 pr-12 text-base text-stone-900 shadow-sm outline-none transition placeholder:text-stone-400 focus:border-amber-700 focus:ring-2 focus:ring-amber-700/20 disabled:cursor-not-allowed disabled:opacity-60"
+            className="field-input pr-10"
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
             disabled={isSubmitting || isSuccess}
-            className="absolute inset-y-0 right-0 flex items-center px-4 text-sm font-medium text-stone-500 transition hover:text-stone-800 disabled:opacity-60"
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-xs font-medium text-stone-400 transition hover:text-stone-700 disabled:opacity-60"
             aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
           >
             {showPassword ? "Ocultar" : "Ver"}
           </button>
         </div>
         {errors.password && (
-          <p className="mt-1.5 text-sm text-red-600">{errors.password}</p>
+          <p className="field-error">{errors.password}</p>
         )}
       </div>
 
       <button
         type="submit"
         disabled={isSubmitting || isSuccess}
-        className="w-full rounded-xl bg-amber-800 px-4 py-3.5 text-base font-semibold text-white shadow-sm transition hover:bg-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-700 focus:ring-offset-2 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+        className="btn-primary"
       >
         {isSubmitting ? "Registrando…" : "Registrarse"}
       </button>

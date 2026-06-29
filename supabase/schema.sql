@@ -35,7 +35,7 @@ create table apartments (
   floor smallint,
   unit smallint not null check (unit between 1 and 8),
   code text not null unique,
-  email text unique,
+  email text,
   phone text,
   password_hash text not null,
   registered_at timestamptz,

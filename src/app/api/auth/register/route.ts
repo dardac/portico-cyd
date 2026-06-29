@@ -133,13 +133,6 @@ export async function POST(request: Request) {
     .is("registered_at", null);
 
   if (updateError) {
-    if (updateError.code === "23505") {
-      return NextResponse.json(
-        { error: "Este correo ya está registrado en otro apartamento." },
-        { status: 409 },
-      );
-    }
-
     console.error("Error al registrar apartamento:", updateError.message);
     return NextResponse.json(
       {
