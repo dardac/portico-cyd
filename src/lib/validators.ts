@@ -1,0 +1,88 @@
+/** Formato estándar: hasta 3 dígitos, guión y letra (ej. 11-D) */
+export const MAX_APARTMENT_DIGITS = 3;
+
+/** Excepciones: NT1-D, PH3-C, etc. */
+export const APARTMENT_EXCEPTION_PREFIXES = ["NT", "PH"] as const;
+
+export const APARTMENT_PATTERN =
+  /^(?:\d{1,3}|(?:NT|PH)\d{1,3})-[A-Za-z]$/;
+
+export function isValidApartment(value: string): boolean {
+  return APARTMENT_PATTERN.test(value.trim().toUpperCase());
+}
+
+export function normalizeApartmentCode(value: string): string {
+  return value.trim().toUpperCase();
+}
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function isValidEmail(value: string): boolean {
+  return EMAIL_PATTERN.test(value.trim());
+}
+
+export function isValidPhone(value: string): boolean {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 11;
+}
+
+function limitDigits(digits: string): string {
+  return digits.slice(0, MAX_APARTMENT_DIGITS);
+}
+
+function formatWithDash(prefix: string, letter: string): string {
+  if (!letter) return prefix;
+  return `${prefix}-${letter}`;
+}
+
+function formatExceptionPrefix(type: "NT" | "PH", digits: string, letter: string): string {
+  if (!digits) return type;
+  return formatWithDash(`${type}${digits}`, letter);
+}
+
+function parseExceptionBody(value: string): string | null {
+  for (const prefix of APARTMENT_EXCEPTION_PREFIXES) {
+    if (!value.startsWith(prefix)) continue;
+
+    const remainder = value.slice(prefix.length);
+    const digitMatch = remainder.match(/^(\d*)([A-Z]?)$/);
+    if (!digitMatch) return null;
+
+    const digits = limitDigits(digitMatch[1]);
+    const letter = digitMatch[2];
+    return formatExceptionPrefix(prefix, digits, letter);
+  }
+
+  return null;
+}
+
+export function formatApartmentInput(value: string): string {
+  const cleaned = value.replace(/[^0-9A-Za-z-]/g, "").toUpperCase();
+
+  if (!cleaned) return "";
+
+  if (cleaned.includes("-")) {
+    const [rawPrefix, ...rest] = cleaned.split("-");
+    const letter = rest.join("").replace(/[^A-Z]/g, "").charAt(0);
+
+    if (rawPrefix.startsWith("NT") || rawPrefix.startsWith("PH")) {
+      const type = rawPrefix.startsWith("NT") ? "NT" : "PH";
+      const digits = limitDigits(rawPrefix.slice(2).replace(/\D/g, ""));
+      return formatExceptionPrefix(type, digits, letter);
+    }
+
+    const digits = limitDigits(rawPrefix.replace(/\D/g, ""));
+    if (!digits) return "";
+    return formatWithDash(digits, letter);
+  }
+
+  const exceptionFormatted = parseExceptionBody(cleaned);
+  if (exceptionFormatted !== null) return exceptionFormatted;
+
+  const match = cleaned.match(/^(\d*)([A-Z]?)$/);
+  if (!match) return cleaned;
+
+  const [, rawDigits, letter] = match;
+  const digits = limitDigits(rawDigits);
+  return formatWithDash(digits, letter);
+}

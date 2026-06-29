@@ -1,0 +1,2 @@
+-- Movido a supabase/migrations/002_registration.sql
+-- Ejecutar con: npm run db:migrate

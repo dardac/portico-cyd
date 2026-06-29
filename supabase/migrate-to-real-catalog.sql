@@ -1,0 +1,3 @@
+-- Movido a supabase/migrations/001_real_catalog.sql
+-- Ejecutar con: npm run db:migrate
+-- Luego carga apartamentos con: npm run db:seed
