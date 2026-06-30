@@ -1,6 +1,13 @@
 /** Formato estándar: hasta 3 dígitos, guión y letra (ej. 11-D) */
 export const MAX_APARTMENT_DIGITS = 3;
 
+/** Máximo para conteos (adultos, niños, vehículos, mascotas, etc.) */
+export const MAX_COUNT = 99;
+
+export function limitCountInput(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 2);
+}
+
 /** Excepciones: NT1-D, PH3-C, etc. */
 export const APARTMENT_EXCEPTION_PREFIXES = ["NT", "PH"] as const;
 

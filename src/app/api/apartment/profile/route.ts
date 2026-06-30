@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { getTodayInCaracas, getYesterdayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { MAX_COUNT } from "@/lib/validators";
 
 function mapEntry(row: {
   occupation: string;
@@ -150,11 +151,11 @@ export async function PUT(request: Request) {
   if (
     typeof vehicleCount !== "number" ||
     vehicleCount < 0 ||
-    vehicleCount > 999 ||
+    vehicleCount > MAX_COUNT ||
     !Number.isInteger(vehicleCount)
   ) {
     return NextResponse.json(
-      { error: "Indica la cantidad de vehículos (0 a 999)." },
+      { error: `Indica la cantidad de vehículos (0 a ${MAX_COUNT}).` },
       { status: 400 },
     );
   }
@@ -162,11 +163,11 @@ export async function PUT(request: Request) {
   if (
     typeof petCount !== "number" ||
     petCount < 0 ||
-    petCount > 999 ||
+    petCount > MAX_COUNT ||
     !Number.isInteger(petCount)
   ) {
     return NextResponse.json(
-      { error: "Indica la cantidad de mascotas (0 a 999)." },
+      { error: `Indica la cantidad de mascotas (0 a ${MAX_COUNT}).` },
       { status: 400 },
     );
   }

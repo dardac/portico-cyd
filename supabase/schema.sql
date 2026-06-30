@@ -79,9 +79,9 @@ create table daily_apartment_profile (
   has_disability boolean not null,
   disability_type text,
   vehicle_count smallint not null default 0
-    check (vehicle_count >= 0 and vehicle_count <= 999),
+    check (vehicle_count >= 0 and vehicle_count <= 99),
   pet_count smallint not null default 0
-    check (pet_count >= 0 and pet_count <= 999),
+    check (pet_count >= 0 and pet_count <= 99),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (apartment_id, profile_date),

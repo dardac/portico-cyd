@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import { formatDateInCaracas } from "@/lib/dates";
+import { limitCountInput } from "@/lib/validators";
 
 type ProfileEntry = {
   occupation: string;
@@ -26,10 +27,6 @@ export type ApartmentProfileSectionHandle = {
   shouldSave: () => boolean;
   validateAndSave: () => Promise<{ ok: true } | { ok: false; error: string }>;
 };
-
-function limitCountInput(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 3);
-}
 
 function ProfileField({
   label,
@@ -362,7 +359,7 @@ export const ApartmentProfileSection = forwardRef<
 
           <div>
             <label htmlFor="occupation" className="field-label">
-              Ocupación de los ocupantes del apartamento
+              Ocupación o profesión de los ocupantes del apartamento
             </label>
             <textarea
               id="occupation"

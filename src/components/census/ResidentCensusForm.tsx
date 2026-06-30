@@ -7,6 +7,7 @@ import {
 } from "@/components/apartment/ApartmentProfileSection";
 import { formatCensusPeople } from "@/lib/census/format-people";
 import { formatDateInCaracas } from "@/lib/dates";
+import { limitCountInput, MAX_COUNT } from "@/lib/validators";
 
 type CensusEntry = {
   willStayOvernight: boolean;
@@ -27,10 +28,6 @@ function formatResponse(
     adultCount: entry.adultCount ?? 0,
     childrenCount: entry.childrenCount ?? 0,
   })}`;
-}
-
-function limitCountInput(value: string): string {
-  return value.replace(/\D/g, "").slice(0, 3);
 }
 
 export function ResidentCensusForm() {
@@ -286,8 +283,7 @@ export function ResidentCensusForm() {
               </div>
 
               <p className="field-hint sm:col-span-2">
-                Al menos 1 persona en total (adulto o niño/adolescente). Máximo
-                999 por categoría.
+                Al menos 1 persona en total (adulto o niño/adolescente).
               </p>
             </div>
           )}

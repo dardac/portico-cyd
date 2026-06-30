@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { getTodayInCaracas, getYesterdayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { MAX_COUNT } from "@/lib/validators";
 
 function mapEntry(row: {
   will_stay_overnight: boolean;
@@ -34,10 +35,10 @@ function validatePeopleCounts(
     !Number.isInteger(childrenCount) ||
     adultCount < 0 ||
     childrenCount < 0 ||
-    adultCount > 999 ||
-    childrenCount > 999
+    adultCount > MAX_COUNT ||
+    childrenCount > MAX_COUNT
   ) {
-    return "Indica cuántos adultos y niños/adolescentes pernoctarán (0 a 999 cada uno).";
+    return `Indica cuántos adultos y niños/adolescentes pernoctarán (0 a ${MAX_COUNT} cada uno).`;
   }
 
   if (adultCount + childrenCount < 1) {
