@@ -1,8 +1,11 @@
+import { formatCensusPeople } from "@/lib/census/format-people";
+
 type CensusApartment = {
   code: string;
   census: {
     willStayOvernight: boolean;
-    peopleCount: number | null;
+    adultCount: number | null;
+    childrenCount: number | null;
   } | null;
 };
 
@@ -44,9 +47,11 @@ export function buildCensusCopyText(data: CensusCopyData): string {
     lines.push(`Torre ${tower.code}:`);
 
     for (const apartment of staying) {
-      const count = apartment.census!.peopleCount ?? 0;
-      const label = count === 1 ? "persona" : "personas";
-      lines.push(`${apartment.code}: ${count} ${label}`);
+      const summary = formatCensusPeople({
+        adultCount: apartment.census!.adultCount ?? 0,
+        childrenCount: apartment.census!.childrenCount ?? 0,
+      });
+      lines.push(`${apartment.code}: ${summary}`);
     }
   }
 

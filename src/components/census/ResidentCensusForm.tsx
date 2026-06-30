@@ -5,11 +5,13 @@ import {
   ApartmentProfileSection,
   type ApartmentProfileSectionHandle,
 } from "@/components/apartment/ApartmentProfileSection";
+import { formatCensusPeople } from "@/lib/census/format-people";
 import { formatDateInCaracas } from "@/lib/dates";
 
 type CensusEntry = {
   willStayOvernight: boolean;
-  peopleCount: number | null;
+  adultCount: number | null;
+  childrenCount: number | null;
   updatedAt: string;
 };
 
@@ -17,16 +19,26 @@ type HistoryEntry = CensusEntry & {
   censusDate: string;
 };
 
-function formatResponse(entry: Pick<HistoryEntry, "willStayOvernight" | "peopleCount">) {
+function formatResponse(
+  entry: Pick<HistoryEntry, "willStayOvernight" | "adultCount" | "childrenCount">,
+) {
   if (!entry.willStayOvernight) return "No pernocta";
-  return `Sí · ${entry.peopleCount} ${entry.peopleCount === 1 ? "persona" : "personas"}`;
+  return `Sí · ${formatCensusPeople({
+    adultCount: entry.adultCount ?? 0,
+    childrenCount: entry.childrenCount ?? 0,
+  })}`;
+}
+
+function limitCountInput(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 3);
 }
 
 export function ResidentCensusForm() {
   const profileRef = useRef<ApartmentProfileSectionHandle>(null);
   const [censusDate, setCensusDate] = useState("");
   const [willStay, setWillStay] = useState<boolean | null>(null);
-  const [peopleCount, setPeopleCount] = useState("");
+  const [adultCount, setAdultCount] = useState("");
+  const [childrenCount, setChildrenCount] = useState("");
   const [isPrefilled, setIsPrefilled] = useState(false);
   const [prefillFromDate, setPrefillFromDate] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -62,15 +74,27 @@ export function ResidentCensusForm() {
 
         if (data.entry) {
           setWillStay(data.entry.willStayOvernight);
-          setPeopleCount(
-            data.entry.peopleCount ? String(data.entry.peopleCount) : "",
+          setAdultCount(
+            data.entry.adultCount !== null ? String(data.entry.adultCount) : "",
+          );
+          setChildrenCount(
+            data.entry.childrenCount !== null
+              ? String(data.entry.childrenCount)
+              : "",
           );
           setIsPrefilled(false);
           setPrefillFromDate(null);
         } else if (data.prefill) {
           setWillStay(data.prefill.willStayOvernight);
-          setPeopleCount(
-            data.prefill.peopleCount ? String(data.prefill.peopleCount) : "",
+          setAdultCount(
+            data.prefill.adultCount !== null
+              ? String(data.prefill.adultCount)
+              : "",
+          );
+          setChildrenCount(
+            data.prefill.childrenCount !== null
+              ? String(data.prefill.childrenCount)
+              : "",
           );
           setIsPrefilled(true);
           setPrefillFromDate(data.prefill.fromDate);
@@ -99,9 +123,16 @@ export function ResidentCensusForm() {
       return;
     }
 
-    if (willStay && (!peopleCount || Number(peopleCount) < 1)) {
-      setError("Indica cuántas personas pernoctarán (mínimo 1).");
-      return;
+    if (willStay) {
+      const adults = Number(adultCount || "0");
+      const children = Number(childrenCount || "0");
+
+      if (adults + children < 1) {
+        setError(
+          "Indica cuántos adultos y niños/adolescentes pernoctarán (al menos 1 en total).",
+        );
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -120,7 +151,8 @@ export function ResidentCensusForm() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           willStayOvernight: willStay,
-          peopleCount: willStay ? Number(peopleCount) : null,
+          adultCount: willStay ? Number(adultCount || "0") : null,
+          childrenCount: willStay ? Number(childrenCount || "0") : null,
         }),
       });
 
@@ -203,7 +235,10 @@ export function ResidentCensusForm() {
                     onChange={() => {
                       setWillStay(option.value);
                       markEdited();
-                      if (!option.value) setPeopleCount("");
+                      if (!option.value) {
+                        setAdultCount("");
+                        setChildrenCount("");
+                      }
                     }}
                   />
                   {option.label}
@@ -213,26 +248,47 @@ export function ResidentCensusForm() {
           </fieldset>
 
           {willStay && (
-            <div className="census-followup">
-              <label htmlFor="peopleCount" className="field-label">
-                ¿Cuántas personas pernoctarán?
-              </label>
-              <input
-                id="peopleCount"
-                type="text"
-                inputMode="numeric"
-                pattern="[1-9][0-9]{0,2}"
-                value={peopleCount}
-                onChange={(event) => {
-                  const digits = event.target.value.replace(/\D/g, "").slice(0, 3);
-                  if (digits === "0") return;
-                  setPeopleCount(digits);
-                  markEdited();
-                }}
-                className="field-input max-w-[8rem]"
-                placeholder="Ej. 3"
-              />
-              <p className="field-hint">Mínimo 1 persona, máximo 999.</p>
+            <div className="census-followup grid gap-5 sm:grid-cols-2">
+              <div>
+                <label htmlFor="adultCount" className="field-label">
+                  Número de adultos
+                </label>
+                <input
+                  id="adultCount"
+                  type="text"
+                  inputMode="numeric"
+                  value={adultCount}
+                  onChange={(event) => {
+                    setAdultCount(limitCountInput(event.target.value));
+                    markEdited();
+                  }}
+                  className="field-input max-w-[8rem]"
+                  placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="childrenCount" className="field-label">
+                  Número de niños o adolescentes
+                </label>
+                <input
+                  id="childrenCount"
+                  type="text"
+                  inputMode="numeric"
+                  value={childrenCount}
+                  onChange={(event) => {
+                    setChildrenCount(limitCountInput(event.target.value));
+                    markEdited();
+                  }}
+                  className="field-input max-w-[8rem]"
+                  placeholder="0"
+                />
+              </div>
+
+              <p className="field-hint sm:col-span-2">
+                Al menos 1 persona en total (adulto o niño/adolescente). Máximo
+                999 por categoría.
+              </p>
             </div>
           )}
         </div>
@@ -244,7 +300,7 @@ export function ResidentCensusForm() {
             integration="combined"
           />
 
-          <section className="app-card-compact">
+          {/* <section className="app-card-compact">
             <h2 className="section-title text-base">Historial</h2>
             <p className="mt-1 text-xs text-stone-400">
               Respuestas anteriores de tu apartamento.
@@ -272,7 +328,7 @@ export function ResidentCensusForm() {
                 ))}
               </ul>
             )}
-          </section>
+          </section> */}
         </aside>
       </div>
 

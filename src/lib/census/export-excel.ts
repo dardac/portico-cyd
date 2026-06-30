@@ -4,7 +4,8 @@ type ExportApartment = {
   code: string;
   census: {
     willStayOvernight: boolean;
-    peopleCount: number | null;
+    adultCount: number | null;
+    childrenCount: number | null;
   } | null;
   profile: {
     occupation: string;
@@ -44,8 +45,11 @@ function flattenApartments(data: CensusExportData) {
               ? "Sí"
               : "No"
             : "",
-          Personas: apartment.census?.willStayOvernight
-            ? (apartment.census.peopleCount ?? "")
+          Adultos: apartment.census?.willStayOvernight
+            ? (apartment.census.adultCount ?? "")
+            : "",
+          "Niños/adolescentes": apartment.census?.willStayOvernight
+            ? (apartment.census.childrenCount ?? "")
             : "",
           Ocupación: apartment.profile?.occupation ?? "",
           Discapacidad: apartment.profile
@@ -75,6 +79,7 @@ export function downloadCensusExcel(data: CensusExportData) {
     { wch: 16 },
     { wch: 10 },
     { wch: 10 },
+    { wch: 18 },
     { wch: 28 },
     { wch: 14 },
     { wch: 18 },

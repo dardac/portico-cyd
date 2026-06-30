@@ -16,7 +16,9 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from("daily_census")
-    .select("census_date, will_stay_overnight, people_count, updated_at")
+    .select(
+      "census_date, will_stay_overnight, adult_count, children_count, updated_at",
+    )
     .eq("apartment_id", session.apartmentId)
     .lt("census_date", today)
     .order("census_date", { ascending: false });
@@ -36,7 +38,8 @@ export async function GET() {
     entries: (data ?? []).map((row) => ({
       censusDate: row.census_date,
       willStayOvernight: row.will_stay_overnight,
-      peopleCount: row.people_count,
+      adultCount: row.adult_count,
+      childrenCount: row.children_count,
       updatedAt: row.updated_at,
     })),
   });

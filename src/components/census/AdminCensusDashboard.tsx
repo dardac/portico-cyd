@@ -5,6 +5,7 @@ import {
   buildCensusCopyText,
   copyTextToClipboard,
 } from "@/lib/census/copy-results";
+import { formatCensusPeople } from "@/lib/census/format-people";
 import { downloadCensusExcel } from "@/lib/census/export-excel";
 import { formatDateInCaracas, getTodayInCaracas } from "@/lib/dates";
 
@@ -24,7 +25,8 @@ type CensusApartment = {
   type: string;
   census: {
     willStayOvernight: boolean;
-    peopleCount: number | null;
+    adultCount: number | null;
+    childrenCount: number | null;
     updatedAt: string;
   } | null;
   profile: ApartmentProfile | null;
@@ -44,6 +46,8 @@ type CensusResponse = {
     apartments: number;
     answered: number;
     staying: number;
+    adults: number;
+    children: number;
     people: number;
   };
   towers: TowerData[];
@@ -60,8 +64,11 @@ function CensusBadge({ apartment }: { apartment: CensusApartment }) {
 
   return (
     <span className="badge-success">
-      Sí · {apartment.census.peopleCount}{" "}
-      {apartment.census.peopleCount === 1 ? "persona" : "personas"}
+      Sí ·{" "}
+      {formatCensusPeople({
+        adultCount: apartment.census.adultCount ?? 0,
+        childrenCount: apartment.census.childrenCount ?? 0,
+      })}
     </span>
   );
 }
@@ -128,10 +135,18 @@ function AdminApartmentRow({ apartment }: { apartment: CensusApartment }) {
                     value={apartment.census.willStayOvernight ? "Sí" : "No"}
                   />
                   <DetailTag
-                    label="Personas"
+                    label="Adultos"
                     value={
                       apartment.census.willStayOvernight
-                        ? String(apartment.census.peopleCount ?? "—")
+                        ? String(apartment.census.adultCount ?? "—")
+                        : "—"
+                    }
+                  />
+                  <DetailTag
+                    label="Niños/adoles."
+                    value={
+                      apartment.census.willStayOvernight
+                        ? String(apartment.census.childrenCount ?? "—")
                         : "—"
                     }
                   />
@@ -291,7 +306,9 @@ export function AdminCensusDashboard() {
               { label: "Apartamentos", value: data.totals.apartments },
               { label: "Respondieron", value: data.totals.answered },
               { label: "Pernoctan", value: data.totals.staying },
-              { label: "Personas", value: data.totals.people },
+              { label: "Adultos", value: data.totals.adults },
+              { label: "Niños/adoles.", value: data.totals.children },
+              { label: "Total personas", value: data.totals.people },
             ].map((stat) => (
               <div key={stat.label} className="stats-bar-item">
                 <p className="text-[11px] font-medium tracking-wide text-stone-400 uppercase">

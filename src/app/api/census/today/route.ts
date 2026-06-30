@@ -6,14 +6,45 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function mapEntry(row: {
   will_stay_overnight: boolean;
-  people_count: number | null;
+  adult_count: number | null;
+  children_count: number | null;
   updated_at: string;
 }) {
   return {
     willStayOvernight: row.will_stay_overnight,
-    peopleCount: row.people_count,
+    adultCount: row.adult_count,
+    childrenCount: row.children_count,
     updatedAt: row.updated_at,
   };
+}
+
+function validatePeopleCounts(
+  willStayOvernight: boolean,
+  adultCount: number | null | undefined,
+  childrenCount: number | null | undefined,
+): string | null {
+  if (!willStayOvernight) {
+    return null;
+  }
+
+  if (
+    typeof adultCount !== "number" ||
+    typeof childrenCount !== "number" ||
+    !Number.isInteger(adultCount) ||
+    !Number.isInteger(childrenCount) ||
+    adultCount < 0 ||
+    childrenCount < 0 ||
+    adultCount > 999 ||
+    childrenCount > 999
+  ) {
+    return "Indica cuántos adultos y niños/adolescentes pernoctarán (0 a 999 cada uno).";
+  }
+
+  if (adultCount + childrenCount < 1) {
+    return "Debe pernoctar al menos 1 persona (adulto o niño/adolescente).";
+  }
+
+  return null;
 }
 
 export async function GET() {
@@ -29,7 +60,7 @@ export async function GET() {
 
   const { data: todayRow, error: todayError } = await supabase
     .from("daily_census")
-    .select("will_stay_overnight, people_count, updated_at")
+    .select("will_stay_overnight, adult_count, children_count, updated_at")
     .eq("apartment_id", session.apartmentId)
     .eq("census_date", censusDate)
     .maybeSingle();
@@ -58,7 +89,7 @@ export async function GET() {
 
   const { data: yesterdayRow, error: yesterdayError } = await supabase
     .from("daily_census")
-    .select("will_stay_overnight, people_count, updated_at")
+    .select("will_stay_overnight, adult_count, children_count, updated_at")
     .eq("apartment_id", session.apartmentId)
     .eq("census_date", yesterdayDate)
     .maybeSingle();
@@ -96,7 +127,11 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 
-  let body: { willStayOvernight?: boolean; peopleCount?: number | null };
+  let body: {
+    willStayOvernight?: boolean;
+    adultCount?: number | null;
+    childrenCount?: number | null;
+  };
 
   try {
     body = await request.json();
@@ -112,15 +147,17 @@ export async function PUT(request: Request) {
   }
 
   const willStayOvernight = body.willStayOvernight;
-  const peopleCount = willStayOvernight ? body.peopleCount : null;
+  const adultCount = willStayOvernight ? body.adultCount : null;
+  const childrenCount = willStayOvernight ? body.childrenCount : null;
 
-  if (willStayOvernight) {
-    if (!peopleCount || peopleCount < 1 || peopleCount > 999) {
-      return NextResponse.json(
-        { error: "Indica cuántas personas pernoctarán (entre 1 y 999)." },
-        { status: 400 },
-      );
-    }
+  const validationError = validatePeopleCounts(
+    willStayOvernight,
+    adultCount,
+    childrenCount,
+  );
+
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
   const censusDate = getTodayInCaracas();
@@ -134,12 +171,13 @@ export async function PUT(request: Request) {
         apartment_id: session.apartmentId,
         census_date: censusDate,
         will_stay_overnight: willStayOvernight,
-        people_count: peopleCount,
+        adult_count: adultCount,
+        children_count: childrenCount,
         updated_at: now,
       },
       { onConflict: "apartment_id,census_date" },
     )
-    .select("will_stay_overnight, people_count, updated_at")
+    .select("will_stay_overnight, adult_count, children_count, updated_at")
     .single();
 
   if (error) {

@@ -81,15 +81,15 @@
   .save-bar {
     margin-top: 2rem;
     padding: 1rem;
-    border-radius: 1rem;
-    border: 1px solid rgb(231 229 228 / 0.75);
-    background: white;
-    box-shadow: 0 1px 3px rgb(28 25 23 / 0.05);
+    /* border-radius: 1rem; */
+    /* border: 1px solid rgb(231 229 228 / 0.75); */
+    /* background: white; */
+    /* box-shadow: 0 1px 3px rgb(28 25 23 / 0.05); */
   }
 
   .btn-save-global {
     display: flex;
-    width: 100%;
+    width: auto;
     min-height: 2.75rem;
     align-items: center;
     justify-content: center;

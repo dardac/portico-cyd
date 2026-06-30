@@ -22,7 +22,8 @@ function getTowerCode(apartment: ApartmentRow): string {
 type CensusRow = {
   apartment_id: string;
   will_stay_overnight: boolean;
-  people_count: number | null;
+  adult_count: number | null;
+  children_count: number | null;
   updated_at: string;
 };
 
@@ -84,7 +85,9 @@ export async function GET(request: Request) {
 
   const { data: censusRows, error: censusError } = await supabase
     .from("daily_census")
-    .select("apartment_id, will_stay_overnight, people_count, updated_at")
+    .select(
+      "apartment_id, will_stay_overnight, adult_count, children_count, updated_at",
+    )
     .eq("census_date", censusDate);
 
   if (censusError) {
@@ -132,9 +135,25 @@ export async function GET(request: Request) {
     apartments: apartments.length,
     answered: censusRows?.length ?? 0,
     staying: censusRows?.filter((row) => row.will_stay_overnight).length ?? 0,
+    adults:
+      censusRows?.reduce(
+        (sum, row) =>
+          sum + (row.will_stay_overnight ? (row.adult_count ?? 0) : 0),
+        0,
+      ) ?? 0,
+    children:
+      censusRows?.reduce(
+        (sum, row) =>
+          sum + (row.will_stay_overnight ? (row.children_count ?? 0) : 0),
+        0,
+      ) ?? 0,
     people:
       censusRows?.reduce(
-        (sum, row) => sum + (row.will_stay_overnight ? (row.people_count ?? 0) : 0),
+        (sum, row) =>
+          sum +
+          (row.will_stay_overnight
+            ? (row.adult_count ?? 0) + (row.children_count ?? 0)
+            : 0),
         0,
       ) ?? 0,
   };
@@ -163,7 +182,8 @@ function buildTowerSummary(
             type: string;
             census: {
               willStayOvernight: boolean;
-              peopleCount: number | null;
+              adultCount: number | null;
+              childrenCount: number | null;
               updatedAt: string;
             } | null;
             profile: {
@@ -208,7 +228,8 @@ function buildTowerSummary(
       census: census
         ? {
             willStayOvernight: census.will_stay_overnight,
-            peopleCount: census.people_count,
+            adultCount: census.adult_count,
+            childrenCount: census.children_count,
             updatedAt: census.updated_at,
           }
         : null,
