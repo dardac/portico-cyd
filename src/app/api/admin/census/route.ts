@@ -26,6 +26,27 @@ type CensusRow = {
   updated_at: string;
 };
 
+type ProfileRow = {
+  apartment_id: string;
+  occupation: string;
+  has_disability: boolean;
+  disability_type: string | null;
+  vehicle_count: number;
+  pet_count: number;
+  updated_at: string;
+};
+
+function mapProfile(row: ProfileRow) {
+  return {
+    occupation: row.occupation,
+    hasDisability: row.has_disability,
+    disabilityType: row.disability_type,
+    vehicleCount: row.vehicle_count,
+    petCount: row.pet_count,
+    updatedAt: row.updated_at,
+  };
+}
+
 export async function GET(request: Request) {
   const session = await getSession();
 
@@ -76,13 +97,35 @@ export async function GET(request: Request) {
     );
   }
 
+  const { data: profileRows, error: profileError } = await supabase
+    .from("daily_apartment_profile")
+    .select(
+      "apartment_id, occupation, has_disability, disability_type, vehicle_count, pet_count, updated_at",
+    )
+    .eq("profile_date", censusDate);
+
+  if (profileError) {
+    console.error("Error al cargar perfiles:", profileError.message);
+    return NextResponse.json(
+      {
+        error: mapSupabaseError(profileError, "No se pudo cargar el censo."),
+      },
+      { status: 500 },
+    );
+  }
+
   const censusByApartment = new Map(
     (censusRows as CensusRow[]).map((row) => [row.apartment_id, row]),
+  );
+
+  const profileByApartment = new Map(
+    (profileRows as ProfileRow[]).map((row) => [row.apartment_id, row]),
   );
 
   const towers = buildTowerSummary(
     apartments as ApartmentRow[],
     censusByApartment,
+    profileByApartment,
   );
 
   const totals = {
@@ -102,6 +145,7 @@ export async function GET(request: Request) {
 function buildTowerSummary(
   apartments: ApartmentRow[],
   censusByApartment: Map<string, CensusRow>,
+  profileByApartment: Map<string, ProfileRow>,
 ) {
   const towerMap = new Map<
     string,
@@ -122,6 +166,14 @@ function buildTowerSummary(
               peopleCount: number | null;
               updatedAt: string;
             } | null;
+            profile: {
+              occupation: string;
+              hasDisability: boolean;
+              disabilityType: string | null;
+              vehicleCount: number;
+              petCount: number;
+              updatedAt: string;
+            } | null;
           }>;
         }
       >;
@@ -138,6 +190,7 @@ function buildTowerSummary(
     const tower = towerMap.get(towerCode)!;
     const floorKey = getFloorKey(apartment);
     const census = censusByApartment.get(apartment.id);
+    const profile = profileByApartment.get(apartment.id);
 
     if (!tower.floors.has(floorKey.key)) {
       tower.floors.set(floorKey.key, {
@@ -159,6 +212,7 @@ function buildTowerSummary(
             updatedAt: census.updated_at,
           }
         : null,
+      profile: profile ? mapProfile(profile) : null,
     });
   }
 

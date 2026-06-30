@@ -28,7 +28,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/censo") || pathname.startsWith("/api/census")) {
+  if (pathname.startsWith("/censo") || pathname.startsWith("/api/census") || pathname.startsWith("/api/apartment/")) {
     if (!session) {
       const loginUrl = new URL("/", request.url);
       return NextResponse.redirect(loginUrl);
@@ -51,5 +51,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/admin", "/censo/:path*", "/api/census/:path*", "/api/admin/:path*"],
+  matcher: ["/", "/admin", "/censo/:path*", "/api/census/:path*", "/api/apartment/:path*", "/api/admin/:path*"],
 };

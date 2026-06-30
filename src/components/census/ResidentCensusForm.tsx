@@ -1,6 +1,10 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ApartmentProfileSection,
+  type ApartmentProfileSectionHandle,
+} from "@/components/apartment/ApartmentProfileSection";
 import { formatDateInCaracas } from "@/lib/dates";
 
 type CensusEntry = {
@@ -19,6 +23,7 @@ function formatResponse(entry: Pick<HistoryEntry, "willStayOvernight" | "peopleC
 }
 
 export function ResidentCensusForm() {
+  const profileRef = useRef<ApartmentProfileSectionHandle>(null);
   const [censusDate, setCensusDate] = useState("");
   const [willStay, setWillStay] = useState<boolean | null>(null);
   const [peopleCount, setPeopleCount] = useState("");
@@ -85,8 +90,7 @@ export function ResidentCensusForm() {
     if (isPrefilled) setIsPrefilled(false);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function handleGlobalSave() {
     setError(null);
     setSuccess(false);
 
@@ -103,6 +107,14 @@ export function ResidentCensusForm() {
     setIsSaving(true);
 
     try {
+      if (profileRef.current?.shouldSave()) {
+        const profileResult = await profileRef.current.validateAndSave();
+        if (!profileResult.ok) {
+          setError(profileResult.error);
+          return;
+        }
+      }
+
       const response = await fetch("/api/census/today", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -125,7 +137,7 @@ export function ResidentCensusForm() {
       setSuccess(true);
       await loadHistory();
     } catch {
-      setError("Error de conexión al guardar el censo.");
+      setError("Error de conexión al guardar. Intenta de nuevo.");
     } finally {
       setIsSaving(false);
     }
@@ -140,131 +152,143 @@ export function ResidentCensusForm() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div>
-        <h1 className="page-title mt-0">Censo diario</h1>
+    <div className="page-content">
+      <header className="page-header">
+        <p className="page-eyebrow">Hoy</p>
+        <h1 className="page-title mt-2">Censo diario</h1>
         {censusDate && (
           <p className="page-subtitle">{formatDateInCaracas(censusDate)}</p>
         )}
+      </header>
+
+      {error && <div className="alert-error mb-6">{error}</div>}
+
+      {isPrefilled && prefillFromDate && (
+        <div className="alert-info mb-6">
+          Respuesta del {formatDateInCaracas(prefillFromDate)} autocompletada.
+          Revísala y guarda si es correcta, o edítala si cambió.
+        </div>
+      )}
+
+      {success && (
+        <div className="alert-success mb-6">
+          Cambios guardados correctamente.
+        </div>
+      )}
+
+      <div className="page-layout-main">
+        <div className="app-card census-form">
+          <fieldset className="space-y-4">
+            <legend className="census-legend">
+              ¿Pernoctará en el día de hoy en las residencias?
+            </legend>
+            <div className="grid grid-cols-2 gap-2.5">
+              {[
+                { value: true, label: "Sí" },
+                { value: false, label: "No" },
+              ].map((option) => (
+                <label
+                  key={String(option.value)}
+                  className={`choice-card ${
+                    willStay === option.value
+                      ? "choice-card-active"
+                      : "choice-card-inactive"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="willStay"
+                    className="sr-only"
+                    checked={willStay === option.value}
+                    onChange={() => {
+                      setWillStay(option.value);
+                      markEdited();
+                      if (!option.value) setPeopleCount("");
+                    }}
+                  />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          {willStay && (
+            <div className="census-followup">
+              <label htmlFor="peopleCount" className="field-label">
+                ¿Cuántas personas pernoctarán?
+              </label>
+              <input
+                id="peopleCount"
+                type="text"
+                inputMode="numeric"
+                pattern="[1-9][0-9]{0,2}"
+                value={peopleCount}
+                onChange={(event) => {
+                  const digits = event.target.value.replace(/\D/g, "").slice(0, 3);
+                  if (digits === "0") return;
+                  setPeopleCount(digits);
+                  markEdited();
+                }}
+                className="field-input max-w-[8rem]"
+                placeholder="Ej. 3"
+              />
+              <p className="field-hint">Mínimo 1 persona, máximo 999.</p>
+            </div>
+          )}
+        </div>
+
+        <aside className="page-aside">
+          <ApartmentProfileSection
+            ref={profileRef}
+            variant="sidebar"
+            integration="combined"
+          />
+
+          <section className="app-card-compact">
+            <h2 className="section-title text-base">Historial</h2>
+            <p className="mt-1 text-xs text-stone-400">
+              Respuestas anteriores de tu apartamento.
+            </p>
+
+            {history.length === 0 ? (
+              <p className="mt-5 text-sm text-stone-400">
+                Aún no hay días registrados.
+              </p>
+            ) : (
+              <ul className="mt-4 space-y-0.5">
+                {history.map((entry) => (
+                  <li key={entry.censusDate} className="history-row">
+                    <p className="text-sm text-stone-700">
+                      {formatDateInCaracas(entry.censusDate, {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                    <span className="shrink-0 text-xs text-stone-400">
+                      {formatResponse(entry)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </aside>
       </div>
 
-      <form onSubmit={handleSubmit} className="app-card space-y-6">
-        {error && <div className="alert-error">{error}</div>}
-
-        {isPrefilled && prefillFromDate && (
-          <div className="alert-info">
-            Respuesta del {formatDateInCaracas(prefillFromDate)} autocompletada.
-            Revísala y guarda si es correcta, o edítala si cambió.
-          </div>
-        )}
-
-        {success && (
-          <div className="alert-success">
-            Respuesta guardada. Puedes editarla cuando quieras hoy.
-          </div>
-        )}
-
-        <fieldset>
-          <legend className="text-sm font-medium text-stone-800">
-            ¿Pernoctará en el día de hoy en las residencias?
-          </legend>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            {[
-              { value: true, label: "Sí" },
-              { value: false, label: "No" },
-            ].map((option) => (
-              <label
-                key={String(option.value)}
-                className={`choice-card ${
-                  willStay === option.value
-                    ? "choice-card-active"
-                    : "choice-card-inactive"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="willStay"
-                  className="sr-only"
-                  checked={willStay === option.value}
-                  onChange={() => {
-                    setWillStay(option.value);
-                    markEdited();
-                    if (!option.value) setPeopleCount("");
-                  }}
-                />
-                {option.label}
-              </label>
-            ))}
-          </div>
-        </fieldset>
-
-        {willStay && (
-          <div>
-            <label htmlFor="peopleCount" className="field-label">
-              ¿Cuántas personas pernoctarán?
-            </label>
-            <input
-              id="peopleCount"
-              type="text"
-              inputMode="numeric"
-              pattern="[1-9][0-9]{0,2}"
-              required
-              value={peopleCount}
-              onChange={(event) => {
-                const digits = event.target.value.replace(/\D/g, "").slice(0, 3);
-                if (digits === "0") return;
-                setPeopleCount(digits);
-                markEdited();
-              }}
-              className="field-input"
-              placeholder="Ej. 3"
-            />
-            <p className="field-hint">Mínimo 1 persona, máximo 999.</p>
-          </div>
-        )}
-
-        <button type="submit" disabled={isSaving} className="btn-primary">
-          {isSaving
-            ? "Guardando…"
-            : isPrefilled
-              ? "Confirmar respuesta"
-              : "Guardar respuesta"}
-        </button>
-      </form>
-
-      <section className="app-card">
-        <h2 className="section-title">Tu historial</h2>
-        <p className="mt-1 text-sm text-stone-500">
-          Solo puedes ver las respuestas de tu apartamento.
+      <div className="save-bar">
+        <p className="mb-3 text-xs text-stone-400">
+          Guarda el censo de hoy y los datos de tu apartamento.
         </p>
-
-        {history.length === 0 ? (
-          <p className="mt-6 text-sm text-stone-400">
-            Aún no tienes días anteriores registrados.
-          </p>
-        ) : (
-          <ul className="mt-5 divide-y divide-stone-100">
-            {history.map((entry) => (
-              <li
-                key={entry.censusDate}
-                className="flex items-center justify-between gap-4 py-3.5 first:pt-0 last:pb-0"
-              >
-                <p className="text-sm font-medium text-stone-800">
-                  {formatDateInCaracas(entry.censusDate, {
-                    weekday: "short",
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </p>
-                <span className="text-sm text-stone-500">
-                  {formatResponse(entry)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <button
+          type="button"
+          onClick={handleGlobalSave}
+          disabled={isSaving}
+          className="btn-save-global"
+        >
+          {isSaving ? "Guardando…" : "Guardar cambios"}
+        </button>
+      </div>
     </div>
   );
 }
