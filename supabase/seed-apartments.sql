@@ -2,8 +2,8 @@
 -- Ejecutar con: npm run db:seed
 -- (Aplica migraciones antes con: npm run db:migrate)
 --
--- Total: 240 apartamentos
---   NT1–NT4 × torres C y D  →  8
+-- Total: 248 apartamentos
+--   NT1–NT8 × torres C y D  →  16
 --   PH1–PH4 × torres C y D  →  8
 --   Pisos 1–14, unidades 1–8 × torres C y D  →  224
 --
@@ -22,7 +22,7 @@ on conflict (code) do update set
 delete from apartments;
 
 -- ---------------------------------------------------------------------------
--- Excepciones NT (8)
+-- Excepciones NT (16)
 -- ---------------------------------------------------------------------------
 
 insert into apartments (tower_id, apartment_type, floor, unit, code, password_hash)
@@ -34,7 +34,7 @@ select
   'NT' || u.unit::text || '-' || t.code,
   crypt('portico2026', gen_salt('bf', 10))
 from towers t
-cross join generate_series(1, 4) as u (unit);
+cross join generate_series(1, 8) as u (unit);
 
 -- ---------------------------------------------------------------------------
 -- Excepciones PH (8)

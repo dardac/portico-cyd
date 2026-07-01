@@ -1,6 +1,6 @@
 -- Pórtico del Ávila — Torres C y D
--- Catálogo real: 240 apartamentos
---   NT1–NT4 × torres C y D  →  8
+-- Catálogo real: 248 apartamentos
+--   NT1–NT8 × torres C y D  →  16
 --   PH1–PH4 × torres C y D  →  8
 --   Pisos 1–14, unidades 1–8 × torres C y D  →  224
 --
@@ -44,7 +44,8 @@ create table apartments (
   updated_at timestamptz not null default now(),
   check (
     (apartment_type = 'standard' and floor between 1 and 14 and unit between 1 and 8)
-    or (apartment_type in ('nt', 'ph') and floor is null and unit between 1 and 4)
+    or (apartment_type = 'nt' and floor is null and unit between 1 and 8)
+    or (apartment_type = 'ph' and floor is null and unit between 1 and 4)
   )
 );
 
