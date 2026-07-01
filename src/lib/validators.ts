@@ -7,14 +7,33 @@ export const MAX_COUNT = 99;
 export const MAX_EMAIL_LENGTH = 254;
 export const MAX_PHONE_LENGTH = 20;
 export const MAX_TEXT_FIELD_LENGTH = 200;
+export const MAX_OCCUPANT_NAMES_LENGTH = 400;
+export const MAX_SUPPORT_DESCRIPTION_LENGTH = 600;
+export const MAX_CONTACT_NAME_LENGTH = 120;
 export const MAX_PASSWORD_LENGTH = 128;
+export const MAX_USERNAME_LENGTH = 50;
+export const MIN_PASSWORD_LENGTH = 8;
 
 export function exceedsMaxLength(value: string, max: number): boolean {
   return value.length > max;
 }
 
+const STAFF_USERNAME_PATTERN = /^[a-z0-9][a-z0-9._-]{2,49}$/;
+
+export function sanitizeStaffUsernameInput(value: string): string {
+  return value.replace(/\s/g, "").toLowerCase().slice(0, MAX_USERNAME_LENGTH);
+}
+
+export function isValidStaffUsername(username: string): boolean {
+  return STAFF_USERNAME_PATTERN.test(username);
+}
+
 export function limitCountInput(value: string): string {
   return value.replace(/\D/g, "").slice(0, 2);
+}
+
+export function limitOccupantNamesInput(value: string): string {
+  return value.slice(0, MAX_OCCUPANT_NAMES_LENGTH);
 }
 
 /** Excepciones: NT1-D, PH3-C, etc. */

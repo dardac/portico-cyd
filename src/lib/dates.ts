@@ -13,6 +13,14 @@ export function getYesterdayInCaracas(): string {
   return date.toISOString().slice(0, 10);
 }
 
+export function formatDateTimeInCaracas(iso: string): string {
+  return new Intl.DateTimeFormat("es-VE", {
+    timeZone: CARACAS_TIMEZONE,
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(iso));
+}
+
 export function formatDateInCaracas(
   date: string,
   options: Intl.DateTimeFormatOptions = {

@@ -227,10 +227,13 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           }}
           disabled={isSubmitting || isSuccess}
           aria-invalid={Boolean(errors.email)}
+          aria-describedby={errors.email ? "register-email-error" : undefined}
           className="field-input"
         />
         {errors.email && (
-          <p className="field-error">{errors.email}</p>
+          <p id="register-email-error" className="field-error">
+            {errors.email}
+          </p>
         )}
       </div>
 
@@ -253,10 +256,13 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           }}
           disabled={isSubmitting || isSuccess}
           aria-invalid={Boolean(errors.phone)}
+          aria-describedby={errors.phone ? "register-phone-error" : undefined}
           className="field-input"
         />
         {errors.phone && (
-          <p className="field-error">{errors.phone}</p>
+          <p id="register-phone-error" className="field-error">
+            {errors.phone}
+          </p>
         )}
       </div>
 
@@ -280,6 +286,9 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
             }}
             disabled={isSubmitting || isSuccess}
             aria-invalid={Boolean(errors.password)}
+            aria-describedby={
+              errors.password ? "register-password-error" : undefined
+            }
             className="field-input pr-10"
           />
           <button
@@ -293,7 +302,9 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
           </button>
         </div>
         {errors.password && (
-          <p className="field-error">{errors.password}</p>
+          <p id="register-password-error" className="field-error">
+            {errors.password}
+          </p>
         )}
       </div>
 

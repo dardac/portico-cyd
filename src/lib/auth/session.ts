@@ -1,21 +1,24 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  isStaffRole,
+  normalizeStaffRole,
+  type StaffRole,
+  type StaffSession,
+} from "@/lib/auth/roles";
+import { withAppSession } from "@/lib/db/app-session";
 
 const COOKIE_NAME = "portico_session";
 
+/** Usuario regular (residente del edificio). */
 export type ResidentSession = {
   type: "resident";
   apartmentId: string;
   apartmentCode: string;
 };
 
-export type AdminSession = {
-  type: "admin";
-  adminId: string;
-  username: string;
-};
+export type AdminSession = StaffSession;
 
 export type AppSession = ResidentSession | AdminSession;
 
@@ -39,25 +42,101 @@ export async function createSessionToken(session: AppSession): Promise<string> {
     .sign(getSecret());
 }
 
+function normalizeAdminPayload(
+  payload: Record<string, unknown>,
+): AdminSession | null {
+  const adminId = payload.adminId;
+  const username = payload.username;
+
+  if (typeof adminId !== "string" || typeof username !== "string") {
+    return null;
+  }
+
+  return {
+    type: "admin",
+    adminId,
+    username,
+    role: normalizeStaffRole(
+      typeof payload.role === "string" ? payload.role : undefined,
+    ),
+  };
+}
+
 export async function verifySessionToken(
   token: string,
 ): Promise<AppSession | null> {
   try {
     const { payload } = await jwtVerify(token, getSecret());
-    const session = payload as AppSession;
 
-    if (session.type === "resident" && session.apartmentId && session.apartmentCode) {
-      return session;
+    if (
+      payload.type === "resident" &&
+      typeof payload.apartmentId === "string" &&
+      typeof payload.apartmentCode === "string"
+    ) {
+      return {
+        type: "resident",
+        apartmentId: payload.apartmentId,
+        apartmentCode: payload.apartmentCode,
+      };
     }
 
-    if (session.type === "admin" && session.adminId && session.username) {
-      return session;
+    if (payload.type === "admin") {
+      return normalizeAdminPayload(payload as Record<string, unknown>);
     }
 
     return null;
   } catch {
     return null;
   }
+}
+
+/** Verifica JWT y que la cuenta siga activa en la base de datos (respeta RLS). */
+export async function validateSessionToken(
+  token: string,
+): Promise<AppSession | null> {
+  const session = await verifySessionToken(token);
+  if (!session) return null;
+
+  if (session.type === "resident") {
+    const isValid = await withAppSession(session, async (query) => {
+      const result = await query<{
+        is_active: boolean;
+        registered_at: string | null;
+      }>(
+        `select is_active, registered_at
+         from apartments
+         where id = $1`,
+        [session.apartmentId],
+      );
+
+      const row = result.rows[0];
+      return Boolean(row?.is_active && row?.registered_at);
+    });
+
+    return isValid ? session : null;
+  }
+
+  return withAppSession(session, async (query) => {
+    const result = await query<{
+      is_active: boolean;
+      role: string;
+    }>(
+      `select is_active, role
+       from admin_users
+       where id = $1`,
+      [session.adminId],
+    );
+
+    const data = result.rows[0];
+    if (!data?.is_active || !isStaffRole(data.role)) {
+      return null;
+    }
+
+    return {
+      ...session,
+      role: data.role,
+    };
+  });
 }
 
 export async function getSession(): Promise<AppSession | null> {
@@ -67,34 +146,12 @@ export async function getSession(): Promise<AppSession | null> {
   return verifySessionToken(token);
 }
 
-async function isSessionStillValid(session: AppSession): Promise<boolean> {
-  const supabase = createSupabaseServerClient();
-
-  if (session.type === "resident") {
-    const { data } = await supabase
-      .from("apartments")
-      .select("is_active, registered_at")
-      .eq("id", session.apartmentId)
-      .maybeSingle();
-
-    return Boolean(data?.is_active && data.registered_at);
-  }
-
-  const { data } = await supabase
-    .from("admin_users")
-    .select("is_active")
-    .eq("id", session.adminId)
-    .maybeSingle();
-
-  return Boolean(data?.is_active);
-}
-
 /** Verifica JWT y que la cuenta siga activa en la base de datos. */
 export async function getValidatedSession(): Promise<AppSession | null> {
-  const session = await getSession();
-  if (!session) return null;
-  if (!(await isSessionStillValid(session))) return null;
-  return session;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(COOKIE_NAME)?.value;
+  if (!token) return null;
+  return validateSessionToken(token);
 }
 
 export async function setSessionCookie(session: AppSession) {
@@ -122,3 +179,5 @@ export function getSessionTokenFromRequest(
 }
 
 export const SESSION_COOKIE_NAME = COOKIE_NAME;
+
+export type { StaffRole };

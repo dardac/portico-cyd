@@ -12,10 +12,15 @@ export function AuthPanel() {
   return (
     <div className="app-card">
       <div className="mb-6">
-        <div className="segmented mb-6">
+        <div
+          className="segmented mb-6"
+          role="group"
+          aria-label="Modo de acceso"
+        >
           <button
             type="button"
             onClick={() => setMode("login")}
+            aria-pressed={mode === "login"}
             className={`segmented-btn ${
               mode === "login"
                 ? "segmented-btn-active"
@@ -27,6 +32,7 @@ export function AuthPanel() {
           <button
             type="button"
             onClick={() => setMode("register")}
+            aria-pressed={mode === "register"}
             className={`segmented-btn ${
               mode === "register"
                 ? "segmented-btn-active"

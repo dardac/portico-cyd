@@ -65,9 +65,10 @@ insert into towers (code, name, floors, units_per_floor) values
   ('C', 'Torre C', 14, 8),
   ('D', 'Torre D', 14, 8);
 
--- ---------------------------------------------------------------------------
--- Seguridad (RLS) — acceso desde la app vía API con service role
--- ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Seguridad (RLS) — ver migración 020_row_level_security.sql
+// PostgREST (anon/authenticated) bloqueado; la app usa portico_app + service_role.
+// ---------------------------------------------------------------------------
 
 alter table towers enable row level security;
 alter table apartments enable row level security;
@@ -77,23 +78,41 @@ create table daily_apartment_profile (
   apartment_id uuid not null references apartments (id) on delete cascade,
   profile_date date not null,
   occupation text not null,
-  has_disability boolean not null,
-  disability_type text,
-  vehicle_count smallint not null default 0
-    check (vehicle_count >= 0 and vehicle_count <= 99),
-  pet_count smallint not null default 0
-    check (pet_count >= 0 and pet_count <= 99),
+  infrastructure_status text
+    check (
+      infrastructure_status is null
+      or infrastructure_status in (
+        'none',
+        'minor_cracks',
+        'severe_damage',
+        'uninhabitable'
+      )
+    ),
+  gas_pipe_status text
+    check (
+      gas_pipe_status is null
+      or gas_pipe_status in (
+        'ok',
+        'pending_review',
+        'pending_repair',
+        'repaired'
+      )
+    ),
+  water_pipe_status text
+    check (
+      water_pipe_status is null
+      or water_pipe_status in (
+        'ok',
+        'pending_review',
+        'pending_repair',
+        'repaired'
+      )
+    ),
+  emergency_contact_name text,
+  emergency_contact_phone text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (apartment_id, profile_date),
-  check (
-    (has_disability = false and disability_type is null)
-    or (
-      has_disability = true
-      and disability_type is not null
-      and length(trim(disability_type)) > 0
-    )
-  )
+  unique (apartment_id, profile_date)
 );
 
 create index daily_apartment_profile_date_idx

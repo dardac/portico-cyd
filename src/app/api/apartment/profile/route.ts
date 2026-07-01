@@ -1,27 +1,45 @@
 import { NextResponse } from "next/server";
 import { getValidatedSession } from "@/lib/auth/session";
+import {
+  isValidInfrastructureStatus,
+  type InfrastructureStatus,
+} from "@/lib/apartment/infrastructure-status";
+import {
+  isValidPipeStatus,
+  type PipeStatus,
+} from "@/lib/apartment/pipe-status";
 import { getTodayInCaracas, getYesterdayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { MAX_COUNT, MAX_TEXT_FIELD_LENGTH, exceedsMaxLength } from "@/lib/validators";
+import {
+  MAX_PHONE_LENGTH,
+  MAX_TEXT_FIELD_LENGTH,
+  exceedsMaxLength,
+  isValidPhone,
+} from "@/lib/validators";
 
 function mapEntry(row: {
   occupation: string;
-  has_disability: boolean;
-  disability_type: string | null;
-  vehicle_count: number;
-  pet_count: number;
+  infrastructure_status: string | null;
+  gas_pipe_status: string | null;
+  water_pipe_status: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
   updated_at: string;
 }) {
   return {
     occupation: row.occupation,
-    hasDisability: row.has_disability,
-    disabilityType: row.disability_type,
-    vehicleCount: row.vehicle_count,
-    petCount: row.pet_count,
+    infrastructureStatus: row.infrastructure_status as InfrastructureStatus | null,
+    gasPipeStatus: row.gas_pipe_status as PipeStatus | null,
+    waterPipeStatus: row.water_pipe_status as PipeStatus | null,
+    emergencyContactName: row.emergency_contact_name,
+    emergencyContactPhone: row.emergency_contact_phone,
     updatedAt: row.updated_at,
   };
 }
+
+const PROFILE_SELECT =
+  "occupation, infrastructure_status, gas_pipe_status, water_pipe_status, emergency_contact_name, emergency_contact_phone, updated_at";
 
 export async function GET() {
   const session = await getValidatedSession();
@@ -36,9 +54,7 @@ export async function GET() {
 
   const { data: todayRow, error: todayError } = await supabase
     .from("daily_apartment_profile")
-    .select(
-      "occupation, has_disability, disability_type, vehicle_count, pet_count, updated_at",
-    )
+    .select(PROFILE_SELECT)
     .eq("apartment_id", session.apartmentId)
     .eq("profile_date", profileDate)
     .maybeSingle();
@@ -67,9 +83,7 @@ export async function GET() {
 
   const { data: yesterdayRow, error: yesterdayError } = await supabase
     .from("daily_apartment_profile")
-    .select(
-      "occupation, has_disability, disability_type, vehicle_count, pet_count, updated_at",
-    )
+    .select(PROFILE_SELECT)
     .eq("apartment_id", session.apartmentId)
     .eq("profile_date", yesterdayDate)
     .maybeSingle();
@@ -109,10 +123,11 @@ export async function PUT(request: Request) {
 
   let body: {
     occupation?: string;
-    hasDisability?: boolean;
-    disabilityType?: string | null;
-    vehicleCount?: number;
-    petCount?: number;
+    infrastructureStatus?: string;
+    gasPipeStatus?: string;
+    waterPipeStatus?: string;
+    emergencyContactName?: string;
+    emergencyContactPhone?: string;
   };
 
   try {
@@ -122,69 +137,67 @@ export async function PUT(request: Request) {
   }
 
   const occupation = body.occupation?.trim() ?? "";
-  const hasDisability = body.hasDisability;
-  const disabilityType = body.disabilityType?.trim() ?? "";
-  const vehicleCount = body.vehicleCount;
-  const petCount = body.petCount;
+  const infrastructureStatus = body.infrastructureStatus ?? "";
+  const gasPipeStatus = body.gasPipeStatus ?? "";
+  const waterPipeStatus = body.waterPipeStatus ?? "";
+  const emergencyContactName = body.emergencyContactName?.trim() ?? "";
+  const emergencyContactPhone = body.emergencyContactPhone?.trim() ?? "";
 
-  if (!occupation) {
-    return NextResponse.json(
-      { error: "Indica la ocupación de los ocupantes del apartamento." },
-      { status: 400 },
-    );
-  }
-
-  if (exceedsMaxLength(occupation, MAX_TEXT_FIELD_LENGTH)) {
+  if (occupation && exceedsMaxLength(occupation, MAX_TEXT_FIELD_LENGTH)) {
     return NextResponse.json(
       { error: "La ocupación es demasiado larga." },
       { status: 400 },
     );
   }
 
-  if (typeof hasDisability !== "boolean") {
+  if (!isValidInfrastructureStatus(infrastructureStatus)) {
     return NextResponse.json(
-      { error: "Indica si algún ocupante posee discapacidad." },
+      { error: "Indica el estado del apartamento (infraestructura)." },
       { status: 400 },
     );
   }
 
-  if (hasDisability && !disabilityType) {
+  if (!isValidPipeStatus(gasPipeStatus)) {
     return NextResponse.json(
-      { error: "Indica qué tipo de discapacidad presenta." },
+      { error: "Indica el estado de las tuberías de gas." },
+      { status: 400 },
+    );
+  }
+
+  if (!isValidPipeStatus(waterPipeStatus)) {
+    return NextResponse.json(
+      { error: "Indica el estado de las tuberías de agua." },
+      { status: 400 },
+    );
+  }
+
+  if (!emergencyContactName) {
+    return NextResponse.json(
+      { error: "Indica el nombre y apellido del contacto de emergencia." },
+      { status: 400 },
+    );
+  }
+
+  if (exceedsMaxLength(emergencyContactName, MAX_TEXT_FIELD_LENGTH)) {
+    return NextResponse.json(
+      { error: "El nombre del contacto de emergencia es demasiado largo." },
+      { status: 400 },
+    );
+  }
+
+  if (!emergencyContactPhone) {
+    return NextResponse.json(
+      { error: "Indica el teléfono del contacto de emergencia." },
       { status: 400 },
     );
   }
 
   if (
-    hasDisability &&
-    exceedsMaxLength(disabilityType, MAX_TEXT_FIELD_LENGTH)
+    !isValidPhone(emergencyContactPhone) ||
+    exceedsMaxLength(emergencyContactPhone, MAX_PHONE_LENGTH)
   ) {
     return NextResponse.json(
-      { error: "El tipo de discapacidad es demasiado largo." },
-      { status: 400 },
-    );
-  }
-
-  if (
-    typeof vehicleCount !== "number" ||
-    vehicleCount < 0 ||
-    vehicleCount > MAX_COUNT ||
-    !Number.isInteger(vehicleCount)
-  ) {
-    return NextResponse.json(
-      { error: `Indica la cantidad de vehículos (0 a ${MAX_COUNT}).` },
-      { status: 400 },
-    );
-  }
-
-  if (
-    typeof petCount !== "number" ||
-    petCount < 0 ||
-    petCount > MAX_COUNT ||
-    !Number.isInteger(petCount)
-  ) {
-    return NextResponse.json(
-      { error: `Indica la cantidad de mascotas (0 a ${MAX_COUNT}).` },
+      { error: "Ingresa un teléfono de emergencia válido (mínimo 10 dígitos)." },
       { status: 400 },
     );
   }
@@ -200,17 +213,16 @@ export async function PUT(request: Request) {
         apartment_id: session.apartmentId,
         profile_date: profileDate,
         occupation,
-        has_disability: hasDisability,
-        disability_type: hasDisability ? disabilityType : null,
-        vehicle_count: vehicleCount,
-        pet_count: petCount,
+        infrastructure_status: infrastructureStatus,
+        gas_pipe_status: gasPipeStatus,
+        water_pipe_status: waterPipeStatus,
+        emergency_contact_name: emergencyContactName,
+        emergency_contact_phone: emergencyContactPhone,
         updated_at: now,
       },
       { onConflict: "apartment_id,profile_date" },
     )
-    .select(
-      "occupation, has_disability, disability_type, vehicle_count, pet_count, updated_at",
-    )
+    .select(PROFILE_SELECT)
     .single();
 
   if (error) {

@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
+import {
+  getInfrastructureStatusLabel,
+  type InfrastructureStatus,
+} from "@/lib/apartment/infrastructure-status";
+import {
+  getPipeStatusLabel,
+  type PipeStatus,
+} from "@/lib/apartment/pipe-status";
 import { getValidatedSession } from "@/lib/auth/session";
+import { canViewResidentPii, isStaffSession } from "@/lib/auth/roles";
 import { getTodayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -24,22 +33,50 @@ type CensusRow = {
   will_stay_overnight: boolean;
   adult_count: number | null;
   children_count: number | null;
+  occupant_names: string | null;
+  has_disability: boolean | null;
+  disability_type: string | null;
+  vehicle_count: number | null;
+  pet_count: number | null;
   updated_at: string;
 };
 
 type ProfileRow = {
   apartment_id: string;
   occupation: string;
-  has_disability: boolean;
-  disability_type: string | null;
-  vehicle_count: number;
-  pet_count: number;
+  infrastructure_status: string | null;
+  gas_pipe_status: string | null;
+  water_pipe_status: string | null;
+  emergency_contact_name: string | null;
+  emergency_contact_phone: string | null;
   updated_at: string;
 };
 
 function mapProfile(row: ProfileRow) {
   return {
     occupation: row.occupation,
+    infrastructureStatus: row.infrastructure_status,
+    infrastructureStatusLabel: getInfrastructureStatusLabel(
+      row.infrastructure_status as InfrastructureStatus | null,
+    ),
+    gasPipeStatus: row.gas_pipe_status,
+    gasPipeStatusLabel: getPipeStatusLabel(row.gas_pipe_status as PipeStatus | null),
+    waterPipeStatus: row.water_pipe_status,
+    waterPipeStatusLabel: getPipeStatusLabel(
+      row.water_pipe_status as PipeStatus | null,
+    ),
+    emergencyContactName: row.emergency_contact_name,
+    emergencyContactPhone: row.emergency_contact_phone,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapCensus(row: CensusRow) {
+  return {
+    willStayOvernight: row.will_stay_overnight,
+    adultCount: row.adult_count,
+    childrenCount: row.children_count,
+    occupantNames: row.occupant_names,
     hasDisability: row.has_disability,
     disabilityType: row.disability_type,
     vehicleCount: row.vehicle_count,
@@ -51,7 +88,7 @@ function mapProfile(row: ProfileRow) {
 export async function GET(request: Request) {
   const session = await getValidatedSession();
 
-  if (!session || session.type !== "admin") {
+  if (!session || !isStaffSession(session)) {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
   }
 
@@ -86,7 +123,7 @@ export async function GET(request: Request) {
   const { data: censusRows, error: censusError } = await supabase
     .from("daily_census")
     .select(
-      "apartment_id, will_stay_overnight, adult_count, children_count, updated_at",
+      "apartment_id, will_stay_overnight, adult_count, children_count, occupant_names, has_disability, disability_type, vehicle_count, pet_count, updated_at",
     )
     .eq("census_date", censusDate);
 
@@ -103,7 +140,7 @@ export async function GET(request: Request) {
   const { data: profileRows, error: profileError } = await supabase
     .from("daily_apartment_profile")
     .select(
-      "apartment_id, occupation, has_disability, disability_type, vehicle_count, pet_count, updated_at",
+      "apartment_id, occupation, infrastructure_status, gas_pipe_status, water_pipe_status, emergency_contact_name, emergency_contact_phone, updated_at",
     )
     .eq("profile_date", censusDate);
 
@@ -158,7 +195,52 @@ export async function GET(request: Request) {
       ) ?? 0,
   };
 
-  return NextResponse.json({ censusDate, totals, towers });
+  const canViewPii = canViewResidentPii(session.role);
+
+  return NextResponse.json({
+    censusDate,
+    totals,
+    towers: canViewPii ? towers : sanitizeTowersForVigilante(towers),
+  });
+}
+
+type MappedApartment = {
+  id: string;
+  code: string;
+  unit: number;
+  type: string;
+  census: ReturnType<typeof mapCensus> | null;
+  profile: ReturnType<typeof mapProfile> | null;
+};
+
+type MappedTower = {
+  code: string;
+  floors: Array<{
+    label: string;
+    apartments: MappedApartment[];
+  }>;
+};
+
+function sanitizeTowersForVigilante(towers: MappedTower[]): MappedTower[] {
+  return towers.map((tower) => ({
+    ...tower,
+    floors: tower.floors.map((floor) => ({
+      ...floor,
+      apartments: floor.apartments.map((apartment) => ({
+        ...apartment,
+        census: apartment.census
+          ? { ...apartment.census, occupantNames: null }
+          : null,
+        profile: apartment.profile
+          ? {
+              ...apartment.profile,
+              occupation: "",
+              emergencyContactName: null,
+            }
+          : null,
+      })),
+    })),
+  }));
 }
 
 function buildTowerSummary(
@@ -184,14 +266,23 @@ function buildTowerSummary(
               willStayOvernight: boolean;
               adultCount: number | null;
               childrenCount: number | null;
+              occupantNames: string | null;
+              hasDisability: boolean | null;
+              disabilityType: string | null;
+              vehicleCount: number | null;
+              petCount: number | null;
               updatedAt: string;
             } | null;
             profile: {
               occupation: string;
-              hasDisability: boolean;
-              disabilityType: string | null;
-              vehicleCount: number;
-              petCount: number;
+              infrastructureStatus: string | null;
+              infrastructureStatusLabel: string;
+              gasPipeStatus: string | null;
+              gasPipeStatusLabel: string;
+              waterPipeStatus: string | null;
+              waterPipeStatusLabel: string;
+              emergencyContactName: string | null;
+              emergencyContactPhone: string | null;
               updatedAt: string;
             } | null;
           }>;
@@ -225,14 +316,7 @@ function buildTowerSummary(
       code: apartment.code,
       unit: apartment.unit,
       type: apartment.apartment_type,
-      census: census
-        ? {
-            willStayOvernight: census.will_stay_overnight,
-            adultCount: census.adult_count,
-            childrenCount: census.children_count,
-            updatedAt: census.updated_at,
-          }
-        : null,
+      census: census ? mapCensus(census) : null,
       profile: profile ? mapProfile(profile) : null,
     });
   }

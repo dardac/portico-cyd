@@ -41,11 +41,17 @@ export function AdminLoginForm() {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-      {error && <div className="alert-error">{error}</div>}
+      {error && (
+        <div role="alert" className="alert-error">
+          {error}
+        </div>
+      )}
 
       <div>
         <label htmlFor="admin-username" className="field-label">
           Usuario
+          <span aria-hidden="true"> *</span>
+          <span className="sr-only"> (obligatorio)</span>
         </label>
         <input
           id="admin-username"
@@ -54,6 +60,7 @@ export function AdminLoginForm() {
           value={username}
           onChange={(event) => setUsername(event.target.value)}
           disabled={isSubmitting}
+          required
           className="field-input"
         />
       </div>
@@ -61,6 +68,8 @@ export function AdminLoginForm() {
       <div>
         <label htmlFor="admin-password" className="field-label">
           Contraseña
+          <span aria-hidden="true"> *</span>
+          <span className="sr-only"> (obligatorio)</span>
         </label>
         <div className="relative">
           <input
@@ -70,12 +79,14 @@ export function AdminLoginForm() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             disabled={isSubmitting}
+            required
             className="field-input pr-10"
           />
           <button
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
             disabled={isSubmitting}
+            aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
             className="absolute inset-y-0 right-0 flex items-center px-3 text-xs font-medium text-stone-400 transition hover:text-stone-700 disabled:opacity-60"
           >
             {showPassword ? "Ocultar" : "Ver"}

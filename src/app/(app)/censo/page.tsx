@@ -1,17 +1,18 @@
 import { redirect } from "next/navigation";
 import { AdminCensusDashboard } from "@/components/census/AdminCensusDashboard";
 import { ResidentCensusForm } from "@/components/census/ResidentCensusForm";
-import { getSession } from "@/lib/auth/session";
+import { isStaffSession } from "@/lib/auth/roles";
+import { getValidatedSession } from "@/lib/auth/session";
 
 export default async function CensoPage() {
-  const session = await getSession();
+  const session = await getValidatedSession();
 
   if (!session) {
     redirect("/");
   }
 
-  if (session.type === "admin") {
-    return <AdminCensusDashboard />;
+  if (isStaffSession(session)) {
+    return <AdminCensusDashboard staffRole={session.role} />;
   }
 
   return <ResidentCensusForm />;

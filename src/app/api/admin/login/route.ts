@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyPassword } from "@/lib/auth";
 import { setSessionCookie } from "@/lib/auth/session";
+import { isStaffRole } from "@/lib/auth/roles";
 import {
   checkRateLimit,
   getClientIp,
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
 
   const { data: admin, error } = await supabase
     .from("admin_users")
-    .select("id, username, password_hash, is_active")
+    .select("id, username, password_hash, is_active, role")
     .eq("username", username)
     .maybeSingle();
 
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!admin || !admin.is_active) {
+  if (!admin || !admin.is_active || !isStaffRole(admin.role)) {
     return NextResponse.json(
       { error: "Usuario o contraseña incorrectos." },
       { status: 401 },
@@ -96,7 +97,8 @@ export async function POST(request: Request) {
     type: "admin",
     adminId: admin.id,
     username: admin.username,
+    role: admin.role,
   });
 
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, role: admin.role });
 }

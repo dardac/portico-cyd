@@ -1,0 +1,32 @@
+"use client";
+
+import { useState } from "react";
+import { EditUserProfileForm } from "@/components/auth/EditUserProfileForm";
+
+export function EditUserProfilePage() {
+  const [saved, setSaved] = useState(false);
+
+  return (
+    <div className="page-content mx-auto max-w-lg">
+      <header className="page-header">
+        <h1 className="page-title">Editar usuario</h1>
+        <p className="page-subtitle">
+          Actualiza tu correo, teléfono o contraseña.
+        </p>
+      </header>
+
+      {saved && (
+        <div className="alert-success mb-6" role="status">
+          Perfil actualizado correctamente.
+        </div>
+      )}
+
+      <div className="rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6">
+        <EditUserProfileForm
+          cancelHref="/censo"
+          onSuccess={() => setSaved(true)}
+        />
+      </div>
+    </div>
+  );
+}

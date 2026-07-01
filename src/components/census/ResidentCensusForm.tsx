@@ -1,33 +1,74 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ApartmentProfileSection,
   type ApartmentProfileSectionHandle,
 } from "@/components/apartment/ApartmentProfileSection";
-import { formatCensusPeople } from "@/lib/census/format-people";
 import { formatDateInCaracas } from "@/lib/dates";
-import { limitCountInput, MAX_COUNT } from "@/lib/validators";
+import {
+  limitCountInput,
+  limitOccupantNamesInput,
+  MAX_OCCUPANT_NAMES_LENGTH,
+} from "@/lib/validators";
 
 type CensusEntry = {
   willStayOvernight: boolean;
   adultCount: number | null;
   childrenCount: number | null;
+  occupantNames: string | null;
+  hasDisability: boolean | null;
+  disabilityType: string | null;
+  vehicleCount: number | null;
+  petCount: number | null;
   updatedAt: string;
 };
 
-type HistoryEntry = CensusEntry & {
-  censusDate: string;
-};
-
-function formatResponse(
-  entry: Pick<HistoryEntry, "willStayOvernight" | "adultCount" | "childrenCount">,
+function applyCensusEntry(
+  entry: CensusEntry,
+  setters: {
+    setWillStay: (value: boolean) => void;
+    setAdultCount: (value: string) => void;
+    setChildrenCount: (value: string) => void;
+    setOccupantNames: (value: string) => void;
+    setHasDisability: (value: boolean | null) => void;
+    setDisabilityType: (value: string) => void;
+    setVehicleCount: (value: string) => void;
+    setPetCount: (value: string) => void;
+  },
 ) {
-  if (!entry.willStayOvernight) return "No pernocta";
-  return `Sí · ${formatCensusPeople({
-    adultCount: entry.adultCount ?? 0,
-    childrenCount: entry.childrenCount ?? 0,
-  })}`;
+  setters.setWillStay(entry.willStayOvernight);
+  setters.setAdultCount(
+    entry.adultCount !== null ? String(entry.adultCount) : "",
+  );
+  setters.setChildrenCount(
+    entry.childrenCount !== null ? String(entry.childrenCount) : "",
+  );
+  setters.setOccupantNames(entry.occupantNames ?? "");
+  setters.setHasDisability(entry.hasDisability);
+  setters.setDisabilityType(entry.disabilityType ?? "");
+  setters.setVehicleCount(
+    entry.vehicleCount !== null ? String(entry.vehicleCount) : "0",
+  );
+  setters.setPetCount(entry.petCount !== null ? String(entry.petCount) : "0");
+}
+
+function clearOvernightFields(setters: {
+  setAdultCount: (value: string) => void;
+  setChildrenCount: (value: string) => void;
+  setOccupantNames: (value: string) => void;
+  setHasDisability: (value: boolean | null) => void;
+  setDisabilityType: (value: string) => void;
+  setVehicleCount: (value: string) => void;
+  setPetCount: (value: string) => void;
+}) {
+  setters.setAdultCount("");
+  setters.setChildrenCount("");
+  setters.setOccupantNames("");
+  setters.setHasDisability(null);
+  setters.setDisabilityType("");
+  setters.setVehicleCount("0");
+  setters.setPetCount("0");
 }
 
 export function ResidentCensusForm() {
@@ -36,30 +77,33 @@ export function ResidentCensusForm() {
   const [willStay, setWillStay] = useState<boolean | null>(null);
   const [adultCount, setAdultCount] = useState("");
   const [childrenCount, setChildrenCount] = useState("");
+  const [occupantNames, setOccupantNames] = useState("");
+  const [occupation, setOccupation] = useState("");
+  const [hasDisability, setHasDisability] = useState<boolean | null>(null);
+  const [disabilityType, setDisabilityType] = useState("");
+  const [vehicleCount, setVehicleCount] = useState("0");
+  const [petCount, setPetCount] = useState("0");
   const [isPrefilled, setIsPrefilled] = useState(false);
   const [prefillFromDate, setPrefillFromDate] = useState<string | null>(null);
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  const loadHistory = useCallback(async () => {
-    const response = await fetch("/api/census/history");
-    const data = await response.json();
-
-    if (response.ok) {
-      setHistory(data.entries ?? []);
-    }
-  }, []);
+  const overnightSetters = {
+    setAdultCount,
+    setChildrenCount,
+    setOccupantNames,
+    setHasDisability,
+    setDisabilityType,
+    setVehicleCount,
+    setPetCount,
+  };
 
   useEffect(() => {
     async function loadCensus() {
       try {
-        const [todayResponse] = await Promise.all([
-          fetch("/api/census/today"),
-          loadHistory(),
-        ]);
+        const todayResponse = await fetch("/api/census/today");
         const data = await todayResponse.json();
 
         if (!todayResponse.ok) {
@@ -70,29 +114,17 @@ export function ResidentCensusForm() {
         setCensusDate(data.censusDate);
 
         if (data.entry) {
-          setWillStay(data.entry.willStayOvernight);
-          setAdultCount(
-            data.entry.adultCount !== null ? String(data.entry.adultCount) : "",
-          );
-          setChildrenCount(
-            data.entry.childrenCount !== null
-              ? String(data.entry.childrenCount)
-              : "",
-          );
+          applyCensusEntry(data.entry, {
+            setWillStay,
+            ...overnightSetters,
+          });
           setIsPrefilled(false);
           setPrefillFromDate(null);
         } else if (data.prefill) {
-          setWillStay(data.prefill.willStayOvernight);
-          setAdultCount(
-            data.prefill.adultCount !== null
-              ? String(data.prefill.adultCount)
-              : "",
-          );
-          setChildrenCount(
-            data.prefill.childrenCount !== null
-              ? String(data.prefill.childrenCount)
-              : "",
-          );
+          applyCensusEntry(data.prefill, {
+            setWillStay,
+            ...overnightSetters,
+          });
           setIsPrefilled(true);
           setPrefillFromDate(data.prefill.fromDate);
         }
@@ -104,32 +136,63 @@ export function ResidentCensusForm() {
     }
 
     loadCensus();
-  }, [loadHistory]);
+  }, []);
 
   function markEdited() {
     setSuccess(false);
     if (isPrefilled) setIsPrefilled(false);
   }
 
+  function validateCensusFields(): string | null {
+    if (willStay === null) {
+      return "Selecciona si pernoctarás hoy en el edificio.";
+    }
+
+    if (!willStay) return null;
+
+    const adults = Number(adultCount || "0");
+    const children = Number(childrenCount || "0");
+
+    if (adults + children < 1) {
+      return "Indica cuántos adultos y niños/adolescentes pernoctarán (al menos 1 en total).";
+    }
+
+    if (!occupantNames.trim()) {
+      return "Indica los nombres de los ocupantes que pernoctarán.";
+    }
+
+    if (occupantNames.length > MAX_OCCUPANT_NAMES_LENGTH) {
+      return "Los nombres de los ocupantes son demasiado largos.";
+    }
+
+    if (!occupation.trim()) {
+      return "Indica la ocupación de los ocupantes del apartamento.";
+    }
+
+    if (hasDisability === null) {
+      return "Indica si algún ocupante posee discapacidad.";
+    }
+
+    if (hasDisability && !disabilityType.trim()) {
+      return "Indica qué tipo de discapacidad presenta.";
+    }
+
+    return null;
+  }
+
   async function handleGlobalSave() {
     setError(null);
     setSuccess(false);
 
-    if (willStay === null) {
-      setError("Selecciona si pernoctarás hoy en el edificio.");
+    const validationError = validateCensusFields();
+    if (validationError) {
+      setError(validationError);
+      window.requestAnimationFrame(() => {
+        document
+          .querySelector("[data-census-error]")
+          ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
       return;
-    }
-
-    if (willStay) {
-      const adults = Number(adultCount || "0");
-      const children = Number(childrenCount || "0");
-
-      if (adults + children < 1) {
-        setError(
-          "Indica cuántos adultos y niños/adolescentes pernoctarán (al menos 1 en total).",
-        );
-        return;
-      }
     }
 
     setIsSaving(true);
@@ -150,6 +213,12 @@ export function ResidentCensusForm() {
           willStayOvernight: willStay,
           adultCount: willStay ? Number(adultCount || "0") : null,
           childrenCount: willStay ? Number(childrenCount || "0") : null,
+          occupantNames: willStay ? occupantNames.trim() : undefined,
+          hasDisability: willStay ? hasDisability : undefined,
+          disabilityType:
+            willStay && hasDisability ? disabilityType.trim() : null,
+          vehicleCount: willStay ? Number(vehicleCount || "0") : undefined,
+          petCount: willStay ? Number(petCount || "0") : undefined,
         }),
       });
 
@@ -164,7 +233,6 @@ export function ResidentCensusForm() {
       setIsPrefilled(false);
       setPrefillFromDate(null);
       setSuccess(true);
-      await loadHistory();
     } catch {
       setError("Error de conexión al guardar. Intenta de nuevo.");
     } finally {
@@ -190,7 +258,11 @@ export function ResidentCensusForm() {
         )}
       </header>
 
-      {error && <div className="alert-error mb-6">{error}</div>}
+      {error && (
+        <div role="alert" className="alert-error mb-6" data-census-error>
+          {error}
+        </div>
+      )}
 
       {isPrefilled && prefillFromDate && (
         <div className="alert-info mb-6">
@@ -200,13 +272,25 @@ export function ResidentCensusForm() {
       )}
 
       {success && (
-        <div className="alert-success mb-6">
+        <div role="status" className="alert-success mb-6">
           Cambios guardados correctamente.
         </div>
       )}
 
       <div className="page-layout-main">
-        <div className="app-card census-form">
+        <ApartmentProfileSection
+          ref={profileRef}
+          variant="sidebar"
+          integration="combined"
+          hideOccupationField
+          requireOccupation={willStay === true}
+          occupationValue={willStay ? occupation : undefined}
+          onOccupationChange={setOccupation}
+          onProfileLoaded={({ occupation: loadedOccupation }) =>
+            setOccupation(loadedOccupation)
+          }
+        />
+        <div className="app-card-compact census-form w-full">
           <fieldset className="space-y-4">
             <legend className="census-legend">
               ¿Pernoctará en el día de hoy en las residencias?
@@ -233,8 +317,7 @@ export function ResidentCensusForm() {
                       setWillStay(option.value);
                       markEdited();
                       if (!option.value) {
-                        setAdultCount("");
-                        setChildrenCount("");
+                        clearOvernightFields(overnightSetters);
                       }
                     }}
                   />
@@ -245,91 +328,188 @@ export function ResidentCensusForm() {
           </fieldset>
 
           {willStay && (
-            <div className="census-followup grid gap-5 sm:grid-cols-2">
-              <div>
-                <label htmlFor="adultCount" className="field-label">
-                  Número de adultos
-                </label>
-                <input
-                  id="adultCount"
-                  type="text"
-                  inputMode="numeric"
-                  value={adultCount}
-                  onChange={(event) => {
-                    setAdultCount(limitCountInput(event.target.value));
-                    markEdited();
-                  }}
-                  className="field-input max-w-[8rem]"
-                  placeholder="0"
-                />
+            <div className="census-followup space-y-5">
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="adultCount" className="field-label">
+                    Número de adultos
+                  </label>
+                  <input
+                    id="adultCount"
+                    type="text"
+                    inputMode="numeric"
+                    value={adultCount}
+                    onChange={(event) => {
+                      setAdultCount(limitCountInput(event.target.value));
+                      markEdited();
+                    }}
+                    className="field-input max-w-[8rem]"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="childrenCount" className="field-label">
+                    Número de niños o adolescentes
+                  </label>
+                  <input
+                    id="childrenCount"
+                    type="text"
+                    inputMode="numeric"
+                    value={childrenCount}
+                    onChange={(event) => {
+                      setChildrenCount(limitCountInput(event.target.value));
+                      markEdited();
+                    }}
+                    className="field-input max-w-[8rem]"
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label htmlFor="childrenCount" className="field-label">
-                  Número de niños o adolescentes
-                </label>
-                <input
-                  id="childrenCount"
-                  type="text"
-                  inputMode="numeric"
-                  value={childrenCount}
-                  onChange={(event) => {
-                    setChildrenCount(limitCountInput(event.target.value));
-                    markEdited();
-                  }}
-                  className="field-input max-w-[8rem]"
-                  placeholder="0"
-                />
-              </div>
-
-              <p className="field-hint sm:col-span-2">
+              <p className="field-hint">
                 Al menos 1 persona en total (adulto o niño/adolescente).
               </p>
+
+              <div>
+                <label htmlFor="occupantNames" className="field-label">
+                  Nombres de los ocupantes
+                </label>
+                <textarea
+                  id="occupantNames"
+                  rows={3}
+                  maxLength={MAX_OCCUPANT_NAMES_LENGTH}
+                  value={occupantNames}
+                  onChange={(event) => {
+                    setOccupantNames(
+                      limitOccupantNamesInput(event.target.value),
+                    );
+                    markEdited();
+                  }}
+                  className="field-input resize-y"
+                  placeholder="Ej. María González, Juan Pérez, Ana Rodríguez…"
+                />
+                <p className="field-hint">
+                  Máximo {MAX_OCCUPANT_NAMES_LENGTH} caracteres.
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="occupation" className="field-label">
+                  Ocupación o profesión de los ocupantes del apartamento
+                </label>
+                <textarea
+                  id="occupation"
+                  rows={3}
+                  value={occupation}
+                  onChange={(event) => {
+                    setOccupation(event.target.value);
+                    markEdited();
+                  }}
+                  className="field-input resize-y"
+                  placeholder="Ej. médico, estudiante, jubilado…"
+                />
+              </div>
+
+              <fieldset>
+                <legend className="field-label mb-3">
+                  ¿Algún ocupante posee discapacidad?
+                </legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: true, label: "Sí" },
+                    { value: false, label: "No" },
+                  ].map((option) => (
+                    <label
+                      key={String(option.value)}
+                      className={`choice-card ${
+                        hasDisability === option.value
+                          ? "choice-card-active"
+                          : "choice-card-inactive"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="hasDisability"
+                        className="sr-only"
+                        checked={hasDisability === option.value}
+                        onChange={() => {
+                          setHasDisability(option.value);
+                          if (!option.value) setDisabilityType("");
+                          markEdited();
+                        }}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
+              {hasDisability && (
+                <div>
+                  <label htmlFor="disabilityType" className="field-label">
+                    ¿Qué tipo de discapacidad presenta?
+                  </label>
+                  <input
+                    id="disabilityType"
+                    type="text"
+                    value={disabilityType}
+                    onChange={(event) => {
+                      setDisabilityType(event.target.value);
+                      markEdited();
+                    }}
+                    className="field-input"
+                    placeholder="Ej. visual, motriz, auditiva…"
+                  />
+                </div>
+              )}
+
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="vehicleCount" className="field-label">
+                    Cantidad de vehículos
+                  </label>
+                  <input
+                    id="vehicleCount"
+                    type="text"
+                    inputMode="numeric"
+                    value={vehicleCount}
+                    onChange={(event) => {
+                      setVehicleCount(limitCountInput(event.target.value));
+                      markEdited();
+                    }}
+                    className="field-input"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="petCount" className="field-label">
+                    Cantidad de mascotas
+                  </label>
+                  <input
+                    id="petCount"
+                    type="text"
+                    inputMode="numeric"
+                    value={petCount}
+                    onChange={(event) => {
+                      setPetCount(limitCountInput(event.target.value));
+                      markEdited();
+                    }}
+                    className="field-input"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        <aside className="page-aside">
-          <ApartmentProfileSection
-            ref={profileRef}
-            variant="sidebar"
-            integration="combined"
-          />
-
-          {/* <section className="app-card-compact">
-            <h2 className="section-title text-base">Historial</h2>
-            <p className="mt-1 text-xs text-stone-400">
-              Respuestas anteriores de tu apartamento.
-            </p>
-
-            {history.length === 0 ? (
-              <p className="mt-5 text-sm text-stone-400">
-                Aún no hay días registrados.
-              </p>
-            ) : (
-              <ul className="mt-4 space-y-0.5">
-                {history.map((entry) => (
-                  <li key={entry.censusDate} className="history-row">
-                    <p className="text-sm text-stone-700">
-                      {formatDateInCaracas(entry.censusDate, {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
-                    <span className="shrink-0 text-xs text-stone-400">
-                      {formatResponse(entry)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section> */}
-        </aside>
+        <aside className="page-aside" />
       </div>
 
       <div className="save-bar">
-        <p className="mb-3 text-xs text-stone-400">
+        <p className="mb-3 text-xs text-stone-500">
           Guarda el censo de hoy y los datos de tu apartamento.
         </p>
         <button

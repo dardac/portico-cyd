@@ -7,9 +7,9 @@ export default function AdminLoginPage() {
     <AuthLayout eyebrow="Administración">
       <div className="app-card">
         <div className="mb-6">
-          <h2 className="section-title">Acceso administrador</h2>
+          <h2 className="section-title">Acceso del personal</h2>
           <p className="mt-1 text-sm text-stone-500">
-            Ingresa con tu usuario administrativo.
+            Ingresa con tu usuario de administrador o vigilante.
           </p>
         </div>
 

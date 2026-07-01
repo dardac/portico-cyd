@@ -2,15 +2,19 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
   getSessionTokenFromRequest,
-  verifySessionToken,
+  validateSessionToken,
 } from "@/lib/auth/session";
+import {
+  hasFullAdminAccess,
+  isStaffSession,
+} from "@/lib/auth/roles";
 
 const PUBLIC_PATHS = ["/", "/admin"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = getSessionTokenFromRequest(request);
-  const session = token ? await verifySessionToken(token) : null;
+  const session = token ? await validateSessionToken(token) : null;
 
   if (pathname.startsWith("/api/auth/") || pathname === "/api/admin/login") {
     return NextResponse.next();
@@ -21,18 +25,38 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL("/censo", request.url));
     }
 
-    if (session?.type === "admin" && pathname === "/admin") {
+    if (isStaffSession(session) && pathname === "/admin") {
       return NextResponse.redirect(new URL("/censo", request.url));
     }
 
     return NextResponse.next();
   }
 
-  if (pathname.startsWith("/censo") || pathname.startsWith("/api/census") || pathname.startsWith("/api/apartment/")) {
+  if (
+    pathname.startsWith("/censo") ||
+    pathname.startsWith("/protocolos") ||
+    pathname.startsWith("/cartelera") ||
+    pathname.startsWith("/perfil") ||
+    pathname.startsWith("/api/census") ||
+    pathname.startsWith("/api/apartment/") ||
+    pathname.startsWith("/api/support-board")
+  ) {
     if (!session) {
       const loginUrl = new URL("/", request.url);
       return NextResponse.redirect(loginUrl);
     }
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/usuarios")) {
+    if (!session) {
+      return NextResponse.redirect(new URL("/", request.url));
+    }
+
+    if (!isStaffSession(session) || !hasFullAdminAccess(session)) {
+      return NextResponse.redirect(new URL("/censo", request.url));
+    }
+
     return NextResponse.next();
   }
 
@@ -41,9 +65,17 @@ export async function proxy(request: NextRequest) {
       return NextResponse.next();
     }
 
-    if (!session || session.type !== "admin") {
+    if (!isStaffSession(session)) {
       return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
+
+    if (
+      pathname.startsWith("/api/admin/users") &&
+      !hasFullAdminAccess(session)
+    ) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 403 });
+    }
+
     return NextResponse.next();
   }
 
@@ -51,5 +83,17 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/admin", "/censo/:path*", "/api/census/:path*", "/api/apartment/:path*", "/api/admin/:path*"],
+  matcher: [
+    "/",
+    "/admin",
+    "/censo/:path*",
+    "/protocolos/:path*",
+    "/cartelera/:path*",
+    "/perfil/:path*",
+    "/usuarios/:path*",
+    "/api/census/:path*",
+    "/api/apartment/:path*",
+    "/api/support-board/:path*",
+    "/api/admin/:path*",
+  ],
 };

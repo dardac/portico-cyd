@@ -2,21 +2,57 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { UserMenu } from "@/components/layout/UserMenu";
 import type { AppSession } from "@/lib/auth/session";
+import {
+  hasFullAdminAccess,
+  isStaffSession,
+} from "@/lib/auth/roles";
+import { getStaffRoleLabel } from "@/lib/auth/roles";
 
 type AppShellProps = {
   session: AppSession;
   children: React.ReactNode;
 };
 
-const NAV_ITEMS = [{ href: "/censo", label: "Censo diario" }];
+type NavItem = { href: string; label: string };
+
+function getNavItems(session: AppSession): NavItem[] {
+  const items: NavItem[] = [
+    { href: "/censo", label: "Censo diario" },
+    { href: "/cartelera", label: "Cartelera de Apoyo" },
+    { href: "/protocolos", label: "Protocolos de Seguridad" },
+  ];
+
+  if (isStaffSession(session) && hasFullAdminAccess(session)) {
+    items.push({ href: "/usuarios", label: "Usuarios" });
+  }
+
+  return items;
+}
+
+const navLinkClass =
+  "rounded-md px-3 py-1.5 text-sm font-medium transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brick/30";
 
 export function AppShell({ session, children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [menuOpen]);
 
   async function handleLogout() {
     setIsLoggingOut(true);
@@ -25,10 +61,11 @@ export function AppShell({ session, children }: AppShellProps) {
     router.refresh();
   }
 
-  const sessionLabel =
-    session.type === "admin"
-      ? `Admin · ${session.username}`
-      : `Apto. ${session.apartmentCode}`;
+  const sessionLabel = isStaffSession(session)
+    ? `${getStaffRoleLabel(session.role)} · ${session.username}`
+    : `Apto. ${session.apartmentCode}`;
+
+  const navItems = getNavItems(session);
 
   return (
     <div className="app-bg">
@@ -42,8 +79,7 @@ export function AppShell({ session, children }: AppShellProps) {
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
             >
-              <span className="sr-only">Menú</span>
-              <div className="flex flex-col gap-[3px]">
+              <div className="flex flex-col gap-[3px]" aria-hidden>
                 <span
                   className={`block h-px w-3.5 bg-current transition ${menuOpen ? "translate-y-[4px] rotate-45" : ""}`}
                 />
@@ -57,31 +93,32 @@ export function AppShell({ session, children }: AppShellProps) {
             </button>
 
             <div className="flex items-center gap-2.5">
-              {/* <div className="hidden h-7 w-7 items-center justify-center rounded-md bg-stone-900 text-[10px] font-semibold text-white sm:flex">
-                PA
-              </div> */}
               <div>
                 <p className="text-sm font-semibold tracking-tight text-stone-900">
                   Pórtico del Ávila
                 </p>
-                <p className="hidden text-xs text-stone-400 sm:block">
+                <p className="hidden text-xs text-stone-500 sm:block">
                   Torres C y D
                 </p>
               </div>
             </div>
           </div>
 
-          <nav className="hidden items-center gap-1 md:flex">
-            {NAV_ITEMS.map((item) => {
+          <nav
+            className="hidden items-center gap-1 md:flex"
+            aria-label="Navegación principal"
+          >
+            {navItems.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`px-3 py-1.5 text-sm transition ${
+                  aria-current={isActive ? "page" : undefined}
+                  className={`${navLinkClass} ${
                     isActive
-                      ? "font-medium text-brick"
-                      : "font-medium text-stone-500 hover:text-stone-800"
+                      ? "text-brick"
+                      : "text-stone-500 hover:text-stone-800"
                   }`}
                 >
                   {item.label}
@@ -90,36 +127,32 @@ export function AppShell({ session, children }: AppShellProps) {
             })}
           </nav>
 
-          <div className="flex items-center gap-2.5">
-            <span className="hidden max-w-[10rem] truncate text-right text-xs text-stone-400 sm:block">
-              {sessionLabel}
-            </span>
-            <button
-              type="button"
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className="btn-ghost"
-            >
-              {isLoggingOut ? "Saliendo…" : "Salir"}
-            </button>
-          </div>
+          <UserMenu
+            label={sessionLabel}
+            onLogout={handleLogout}
+            isLoggingOut={isLoggingOut}
+          />
         </div>
 
         {menuOpen && (
-          <nav className="border-t border-stone-200/60 px-4 py-3 md:hidden">
-            <p className="mb-2 text-xs text-stone-400">{sessionLabel}</p>
+          <nav
+            className="border-t border-stone-200/60 px-4 py-3 md:hidden"
+            aria-label="Navegación principal"
+          >
+            <p className="mb-2 text-xs text-stone-500">{sessionLabel}</p>
             <div className="space-y-0.5">
-              {NAV_ITEMS.map((item) => {
+              {navItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
+                    aria-current={isActive ? "page" : undefined}
                     onClick={() => setMenuOpen(false)}
-                    className={`block px-3 py-2 text-sm transition ${
+                    className={`block ${navLinkClass} ${
                       isActive
-                        ? "font-medium text-brick"
-                        : "font-medium text-stone-500 hover:text-stone-800"
+                        ? "text-brick"
+                        : "text-stone-500 hover:text-stone-800"
                     }`}
                   >
                     {item.label}

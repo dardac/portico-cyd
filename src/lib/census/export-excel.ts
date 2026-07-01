@@ -6,13 +6,19 @@ type ExportApartment = {
     willStayOvernight: boolean;
     adultCount: number | null;
     childrenCount: number | null;
+    occupantNames: string | null;
+    hasDisability: boolean | null;
+    disabilityType: string | null;
+    vehicleCount: number | null;
+    petCount: number | null;
   } | null;
   profile: {
     occupation: string;
-    hasDisability: boolean;
-    disabilityType: string | null;
-    vehicleCount: number;
-    petCount: number;
+    infrastructureStatusLabel: string;
+    gasPipeStatusLabel: string;
+    waterPipeStatusLabel: string;
+    emergencyContactName: string | null;
+    emergencyContactPhone: string | null;
   } | null;
 };
 
@@ -51,15 +57,33 @@ function flattenApartments(data: CensusExportData) {
           "Niños/adolescentes": apartment.census?.willStayOvernight
             ? (apartment.census.childrenCount ?? "")
             : "",
-          Ocupación: apartment.profile?.occupation ?? "",
-          Discapacidad: apartment.profile
-            ? apartment.profile.hasDisability
+          Ocupantes: apartment.census?.willStayOvernight
+            ? (apartment.census.occupantNames ?? "")
+            : "",
+          Ocupación:
+            apartment.census?.willStayOvernight && apartment.profile?.occupation
+              ? apartment.profile.occupation
+              : "",
+          Discapacidad: apartment.census?.willStayOvernight
+            ? apartment.census.hasDisability
               ? "Sí"
               : "No"
             : "",
-          "Tipo discapacidad": apartment.profile?.disabilityType ?? "",
-          Vehículos: apartment.profile?.vehicleCount ?? "",
-          Mascotas: apartment.profile?.petCount ?? "",
+          "Tipo discapacidad": apartment.census?.willStayOvernight
+            ? (apartment.census.disabilityType ?? "")
+            : "",
+          Vehículos: apartment.census?.willStayOvernight
+            ? (apartment.census.vehicleCount ?? "")
+            : "",
+          Mascotas: apartment.census?.willStayOvernight
+            ? (apartment.census.petCount ?? "")
+            : "",
+          Infraestructura: apartment.profile?.infrastructureStatusLabel ?? "",
+          "Tuberías de gas": apartment.profile?.gasPipeStatusLabel ?? "",
+          "Tuberías de agua": apartment.profile?.waterPipeStatusLabel ?? "",
+          "Contacto emergencia": apartment.profile?.emergencyContactName
+            ? `${apartment.profile.emergencyContactName}${apartment.profile.emergencyContactPhone ? ` · ${apartment.profile.emergencyContactPhone}` : ""}`
+            : "",
         });
       }
     }
@@ -80,11 +104,16 @@ export function downloadCensusExcel(data: CensusExportData) {
     { wch: 10 },
     { wch: 10 },
     { wch: 18 },
-    { wch: 28 },
+    { wch: 32 },
     { wch: 14 },
     { wch: 18 },
     { wch: 10 },
     { wch: 10 },
+    { wch: 28 },
+    { wch: 18 },
+    { wch: 28 },
+    { wch: 28 },
+    { wch: 24 },
   ];
 
   const workbook = XLSX.utils.book_new();

@@ -3,30 +3,53 @@ import { getValidatedSession } from "@/lib/auth/session";
 import { getTodayInCaracas, getYesterdayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { MAX_COUNT } from "@/lib/validators";
+import {
+  MAX_COUNT,
+  MAX_OCCUPANT_NAMES_LENGTH,
+  MAX_TEXT_FIELD_LENGTH,
+  exceedsMaxLength,
+} from "@/lib/validators";
 
 function mapEntry(row: {
   will_stay_overnight: boolean;
   adult_count: number | null;
   children_count: number | null;
+  occupant_names: string | null;
+  has_disability: boolean | null;
+  disability_type: string | null;
+  vehicle_count: number | null;
+  pet_count: number | null;
   updated_at: string;
 }) {
   return {
     willStayOvernight: row.will_stay_overnight,
     adultCount: row.adult_count,
     childrenCount: row.children_count,
+    occupantNames: row.occupant_names,
+    hasDisability: row.has_disability,
+    disabilityType: row.disability_type,
+    vehicleCount: row.vehicle_count,
+    petCount: row.pet_count,
     updatedAt: row.updated_at,
   };
 }
 
-function validatePeopleCounts(
-  willStayOvernight: boolean,
-  adultCount: number | null | undefined,
-  childrenCount: number | null | undefined,
-): string | null {
-  if (!willStayOvernight) {
+function validateOvernightFields(body: {
+  willStayOvernight: boolean;
+  adultCount?: number | null;
+  childrenCount?: number | null;
+  occupantNames?: string;
+  hasDisability?: boolean;
+  disabilityType?: string | null;
+  vehicleCount?: number;
+  petCount?: number;
+}): string | null {
+  if (!body.willStayOvernight) {
     return null;
   }
+
+  const adultCount = body.adultCount;
+  const childrenCount = body.childrenCount;
 
   if (
     typeof adultCount !== "number" ||
@@ -45,8 +68,57 @@ function validatePeopleCounts(
     return "Debe pernoctar al menos 1 persona (adulto o niño/adolescente).";
   }
 
+  const occupantNames = body.occupantNames?.trim() ?? "";
+  if (!occupantNames) {
+    return "Indica los nombres de los ocupantes que pernoctarán.";
+  }
+
+  if (exceedsMaxLength(occupantNames, MAX_OCCUPANT_NAMES_LENGTH)) {
+    return "Los nombres de los ocupantes son demasiado largos.";
+  }
+
+  if (typeof body.hasDisability !== "boolean") {
+    return "Indica si algún ocupante posee discapacidad.";
+  }
+
+  const disabilityType = body.disabilityType?.trim() ?? "";
+  if (body.hasDisability && !disabilityType) {
+    return "Indica qué tipo de discapacidad presenta.";
+  }
+
+  if (
+    body.hasDisability &&
+    exceedsMaxLength(disabilityType, MAX_TEXT_FIELD_LENGTH)
+  ) {
+    return "El tipo de discapacidad es demasiado largo.";
+  }
+
+  const vehicleCount = body.vehicleCount;
+  const petCount = body.petCount;
+
+  if (
+    typeof vehicleCount !== "number" ||
+    vehicleCount < 0 ||
+    vehicleCount > MAX_COUNT ||
+    !Number.isInteger(vehicleCount)
+  ) {
+    return `Indica la cantidad de vehículos (0 a ${MAX_COUNT}).`;
+  }
+
+  if (
+    typeof petCount !== "number" ||
+    petCount < 0 ||
+    petCount > MAX_COUNT ||
+    !Number.isInteger(petCount)
+  ) {
+    return `Indica la cantidad de mascotas (0 a ${MAX_COUNT}).`;
+  }
+
   return null;
 }
+
+const CENSUS_SELECT =
+  "will_stay_overnight, adult_count, children_count, occupant_names, has_disability, disability_type, vehicle_count, pet_count, updated_at";
 
 export async function GET() {
   const session = await getValidatedSession();
@@ -61,7 +133,7 @@ export async function GET() {
 
   const { data: todayRow, error: todayError } = await supabase
     .from("daily_census")
-    .select("will_stay_overnight, adult_count, children_count, updated_at")
+    .select(CENSUS_SELECT)
     .eq("apartment_id", session.apartmentId)
     .eq("census_date", censusDate)
     .maybeSingle();
@@ -90,7 +162,7 @@ export async function GET() {
 
   const { data: yesterdayRow, error: yesterdayError } = await supabase
     .from("daily_census")
-    .select("will_stay_overnight, adult_count, children_count, updated_at")
+    .select(CENSUS_SELECT)
     .eq("apartment_id", session.apartmentId)
     .eq("census_date", yesterdayDate)
     .maybeSingle();
@@ -132,6 +204,11 @@ export async function PUT(request: Request) {
     willStayOvernight?: boolean;
     adultCount?: number | null;
     childrenCount?: number | null;
+    occupantNames?: string;
+    hasDisability?: boolean;
+    disabilityType?: string | null;
+    vehicleCount?: number;
+    petCount?: number;
   };
 
   try {
@@ -148,14 +225,16 @@ export async function PUT(request: Request) {
   }
 
   const willStayOvernight = body.willStayOvernight;
-  const adultCount = willStayOvernight ? body.adultCount : null;
-  const childrenCount = willStayOvernight ? body.childrenCount : null;
-
-  const validationError = validatePeopleCounts(
+  const validationError = validateOvernightFields({
     willStayOvernight,
-    adultCount,
-    childrenCount,
-  );
+    adultCount: willStayOvernight ? body.adultCount : null,
+    childrenCount: willStayOvernight ? body.childrenCount : null,
+    occupantNames: willStayOvernight ? body.occupantNames : undefined,
+    hasDisability: willStayOvernight ? body.hasDisability : undefined,
+    disabilityType: willStayOvernight ? body.disabilityType : undefined,
+    vehicleCount: willStayOvernight ? body.vehicleCount : undefined,
+    petCount: willStayOvernight ? body.petCount : undefined,
+  });
 
   if (validationError) {
     return NextResponse.json({ error: validationError }, { status: 400 });
@@ -172,13 +251,23 @@ export async function PUT(request: Request) {
         apartment_id: session.apartmentId,
         census_date: censusDate,
         will_stay_overnight: willStayOvernight,
-        adult_count: adultCount,
-        children_count: childrenCount,
+        adult_count: willStayOvernight ? body.adultCount : null,
+        children_count: willStayOvernight ? body.childrenCount : null,
+        occupant_names: willStayOvernight
+          ? body.occupantNames?.trim() ?? null
+          : null,
+        has_disability: willStayOvernight ? body.hasDisability : null,
+        disability_type:
+          willStayOvernight && body.hasDisability
+            ? body.disabilityType?.trim() ?? null
+            : null,
+        vehicle_count: willStayOvernight ? body.vehicleCount : null,
+        pet_count: willStayOvernight ? body.petCount : null,
         updated_at: now,
       },
       { onConflict: "apartment_id,census_date" },
     )
-    .select("will_stay_overnight, adult_count, children_count, updated_at")
+    .select(CENSUS_SELECT)
     .single();
 
   if (error) {

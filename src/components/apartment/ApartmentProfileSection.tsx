@@ -3,19 +3,28 @@
 import {
   forwardRef,
   useEffect,
+  useId,
   useImperativeHandle,
   useState,
   type FormEvent,
 } from "react";
 import { formatDateInCaracas } from "@/lib/dates";
-import { limitCountInput } from "@/lib/validators";
+import {
+  getInfrastructureStatusLabel,
+  INFRASTRUCTURE_STATUS_OPTIONS,
+  type InfrastructureStatus,
+} from "@/lib/apartment/infrastructure-status";
+import { getPipeStatusLabel, type PipeStatus } from "@/lib/apartment/pipe-status";
+import { PipeStatusSelector } from "@/components/apartment/PipeStatusSelector";
+import { exceedsMaxLength, isValidPhone, MAX_TEXT_FIELD_LENGTH } from "@/lib/validators";
 
 type ProfileEntry = {
   occupation: string;
-  hasDisability: boolean;
-  disabilityType: string | null;
-  vehicleCount: number;
-  petCount: number;
+  infrastructureStatus: InfrastructureStatus | null;
+  gasPipeStatus: PipeStatus | null;
+  waterPipeStatus: PipeStatus | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
   updatedAt: string;
 };
 
@@ -47,29 +56,36 @@ function applyEntryToForm(
   entry: ProfileEntry,
   setters: {
     setOccupation: (value: string) => void;
-    setHasDisability: (value: boolean | null) => void;
-    setDisabilityType: (value: string) => void;
-    setVehicleCount: (value: string) => void;
-    setPetCount: (value: string) => void;
+    setInfrastructureStatus: (value: InfrastructureStatus | null) => void;
+    setGasPipeStatus: (value: PipeStatus | null) => void;
+    setWaterPipeStatus: (value: PipeStatus | null) => void;
+    setEmergencyContactName: (value: string) => void;
+    setEmergencyContactPhone: (value: string) => void;
   },
 ) {
   setters.setOccupation(entry.occupation);
-  setters.setHasDisability(entry.hasDisability);
-  setters.setDisabilityType(entry.disabilityType ?? "");
-  setters.setVehicleCount(String(entry.vehicleCount));
-  setters.setPetCount(String(entry.petCount));
+  setters.setInfrastructureStatus(entry.infrastructureStatus);
+  setters.setGasPipeStatus(entry.gasPipeStatus);
+  setters.setWaterPipeStatus(entry.waterPipeStatus);
+  setters.setEmergencyContactName(entry.emergencyContactName ?? "");
+  setters.setEmergencyContactPhone(entry.emergencyContactPhone ?? "");
 }
 
 type ApartmentProfileSectionProps = {
   variant?: "default" | "sidebar";
   integration?: "standalone" | "combined";
+  hideOccupationField?: boolean;
+  requireOccupation?: boolean;
+  occupationValue?: string;
+  onOccupationChange?: (value: string) => void;
+  onProfileLoaded?: (data: { occupation: string }) => void;
 };
 
 export const ApartmentProfileSection = forwardRef<
   ApartmentProfileSectionHandle,
   ApartmentProfileSectionProps
 >(function ApartmentProfileSection(
-  { variant = "default", integration = "standalone" },
+  { variant = "default", integration = "standalone", hideOccupationField = false, requireOccupation = true, occupationValue, onOccupationChange, onProfileLoaded },
   ref,
 ) {
   const isCombined = integration === "combined";
@@ -79,26 +95,50 @@ export const ApartmentProfileSection = forwardRef<
   const [isSaved, setIsSaved] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [occupation, setOccupation] = useState("");
-  const [hasDisability, setHasDisability] = useState<boolean | null>(null);
-  const [disabilityType, setDisabilityType] = useState("");
-  const [vehicleCount, setVehicleCount] = useState("0");
-  const [petCount, setPetCount] = useState("0");
+  const [infrastructureStatus, setInfrastructureStatus] =
+    useState<InfrastructureStatus | null>(null);
+  const [gasPipeStatus, setGasPipeStatus] = useState<PipeStatus | null>(null);
+  const [waterPipeStatus, setWaterPipeStatus] = useState<PipeStatus | null>(null);
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [userExpandedPreference, setUserExpandedPreference] = useState<
+    boolean | null
+  >(null);
+  const panelId = useId();
 
   const formSetters = {
     setOccupation,
-    setHasDisability,
-    setDisabilityType,
-    setVehicleCount,
-    setPetCount,
+    setInfrastructureStatus,
+    setGasPipeStatus,
+    setWaterPipeStatus,
+    setEmergencyContactName,
+    setEmergencyContactPhone,
   };
 
   const displayEntry = entry ?? prefill;
   const hasDisplayData = Boolean(displayEntry);
   const isPrefilled = Boolean(prefill) && !isSaved;
+  const canCollapse = hasDisplayData && !isEditing;
+  const isExpanded = userExpandedPreference ?? !isCombined;
+  const showBody = !canCollapse || isExpanded;
+
+  function getOccupationForSave(): string {
+    if (hideOccupationField && !requireOccupation) {
+      return (occupation || displayEntry?.occupation || "").trim();
+    }
+
+    return (occupationValue ?? occupation).trim();
+  }
+
+  function startEditing() {
+    setIsEditing(true);
+    setSuccess(false);
+    setError(null);
+  }
 
   useEffect(() => {
     async function loadProfile() {
@@ -118,10 +158,14 @@ export const ApartmentProfileSection = forwardRef<
 
         if (data.entry) {
           applyEntryToForm(data.entry, formSetters);
+          onProfileLoaded?.({ occupation: data.entry.occupation });
           setIsEditing(false);
+          setUserExpandedPreference(null);
         } else if (data.prefill) {
           applyEntryToForm(data.prefill, formSetters);
+          onProfileLoaded?.({ occupation: data.prefill.occupation });
           setIsEditing(false);
+          setUserExpandedPreference(null);
         } else {
           setIsEditing(true);
         }
@@ -146,46 +190,77 @@ export const ApartmentProfileSection = forwardRef<
   function validateFormFields():
     | { ok: true; body: Record<string, unknown> }
     | { ok: false; error: string } {
-    if (!occupation.trim()) {
+    const occupationForSave = getOccupationForSave();
+
+    if (requireOccupation && !occupationForSave) {
       return {
         ok: false,
         error: "Indica la ocupación de los ocupantes del apartamento.",
       };
     }
 
-    if (hasDisability === null) {
+    if (
+      occupationForSave &&
+      exceedsMaxLength(occupationForSave, MAX_TEXT_FIELD_LENGTH)
+    ) {
       return {
         ok: false,
-        error: "Indica si algún ocupante posee discapacidad.",
+        error: "La ocupación es demasiado larga.",
       };
     }
 
-    if (hasDisability && !disabilityType.trim()) {
+    if (!infrastructureStatus) {
       return {
         ok: false,
-        error: "Indica qué tipo de discapacidad presenta.",
+        error: "Indica el estado del apartamento (infraestructura).",
+      };
+    }
+
+    if (!gasPipeStatus) {
+      return {
+        ok: false,
+        error: "Indica el estado de las tuberías de gas.",
+      };
+    }
+
+    if (!waterPipeStatus) {
+      return {
+        ok: false,
+        error: "Indica el estado de las tuberías de agua.",
+      };
+    }
+
+    if (!emergencyContactName.trim()) {
+      return {
+        ok: false,
+        error: "Indica el nombre y apellido del contacto de emergencia.",
+      };
+    }
+
+    if (!emergencyContactPhone.trim()) {
+      return {
+        ok: false,
+        error: "Indica el teléfono del contacto de emergencia.",
+      };
+    }
+
+    if (!isValidPhone(emergencyContactPhone)) {
+      return {
+        ok: false,
+        error: "Ingresa un teléfono de emergencia válido (mínimo 10 dígitos).",
       };
     }
 
     return {
       ok: true,
       body: {
-        occupation,
-        hasDisability,
-        disabilityType: hasDisability ? disabilityType : null,
-        vehicleCount: Number(vehicleCount || "0"),
-        petCount: Number(petCount || "0"),
+        occupation: occupationForSave,
+        infrastructureStatus,
+        gasPipeStatus,
+        waterPipeStatus,
+        emergencyContactName: emergencyContactName.trim(),
+        emergencyContactPhone: emergencyContactPhone.trim(),
       },
-    };
-  }
-
-  function payloadFromEntry(source: ProfileEntry) {
-    return {
-      occupation: source.occupation,
-      hasDisability: source.hasDisability,
-      disabilityType: source.disabilityType,
-      vehicleCount: source.vehicleCount,
-      petCount: source.petCount,
     };
   }
 
@@ -216,6 +291,7 @@ export const ApartmentProfileSection = forwardRef<
       setIsSaved(true);
       if (data.entry) applyEntryToForm(data.entry, formSetters);
       setIsEditing(false);
+      setUserExpandedPreference(null);
       setSuccess(true);
       return { ok: true };
     } catch {
@@ -241,7 +317,9 @@ export const ApartmentProfileSection = forwardRef<
       }
 
       if (!isSaved && prefill) {
-        return persistProfile(payloadFromEntry(prefill));
+        const validated = validateFormFields();
+        if (!validated.ok) return validated;
+        return persistProfile(validated.body);
       }
 
       if (!isSaved) {
@@ -285,35 +363,66 @@ export const ApartmentProfileSection = forwardRef<
     );
   }
 
-  const cardClass = variant === "sidebar" ? "app-card-compact" : "app-card";
+  const cardClass = variant === "sidebar" ? "app-card-compact w-full" : "app-card w-full";
   const showLocalFeedback = !isCombined;
 
   return (
     <section className={cardClass}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2
-            className={
-              variant === "sidebar" ? "section-title text-base" : "section-title"
-            }
-          >
-            Tu apartamento
-          </h2>
-          {variant === "default" && profileDate && (
-            <p className="mt-1.5 text-sm text-stone-500">
-              Datos de hoy · {formatDateInCaracas(profileDate)}
-            </p>
-          )}
-        </div>
-
-        {!isEditing && hasDisplayData && (
+      <div className="profile-section-header">
+        {canCollapse ? (
           <button
             type="button"
-            onClick={() => {
-              setIsEditing(true);
-              setSuccess(false);
-              setError(null);
-            }}
+            className="profile-collapse-trigger"
+            aria-expanded={isExpanded}
+            aria-controls={panelId}
+            onClick={() =>
+              setUserExpandedPreference((current) => !(current ?? !isCombined))
+            }
+          >
+            <span
+              className={`profile-collapse-title ${
+                variant === "sidebar" ? "section-title text-base" : "section-title"
+              }`}
+            >
+              Tu apartamento
+            </span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden
+              className={`profile-section-chevron ${isExpanded ? "profile-section-chevron-open" : ""}`}
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        ) : (
+          <div className="min-w-0 flex-1">
+            <h2
+              className={
+                variant === "sidebar"
+                  ? "section-title text-base"
+                  : "section-title"
+              }
+            >
+              Tu apartamento
+            </h2>
+            {variant === "default" && profileDate && (
+              <p className="mt-1.5 text-sm text-stone-500">
+                Datos de hoy · {formatDateInCaracas(profileDate)}
+              </p>
+            )}
+          </div>
+        )}
+
+        {!isEditing && hasDisplayData && isExpanded && (
+          <button
+            type="button"
+            onClick={startEditing}
             className="btn-ghost shrink-0 gap-1.5 px-2.5"
             aria-label="Editar datos del apartamento"
           >
@@ -331,8 +440,10 @@ export const ApartmentProfileSection = forwardRef<
         )}
       </div>
 
+      {showBody && (
+        <div id={panelId}>
       {showLocalFeedback && error && (
-        <div className="alert-error mt-4">{error}</div>
+        <div role="alert" className="alert-error mt-4">{error}</div>
       )}
 
       {!isEditing && isPrefilled && prefill && (
@@ -343,7 +454,7 @@ export const ApartmentProfileSection = forwardRef<
       )}
 
       {showLocalFeedback && success && !isEditing && (
-        <div className="alert-success mt-4">
+        <div role="status" className="alert-success mt-4">
           Datos guardados correctamente.
         </div>
       )}
@@ -357,102 +468,142 @@ export const ApartmentProfileSection = forwardRef<
             </div>
           )}
 
-          <div>
-            <label htmlFor="occupation" className="field-label">
-              Ocupación o profesión de los ocupantes del apartamento
-            </label>
-            <textarea
-              id="occupation"
-              rows={3}
-              value={occupation}
-              onChange={(event) => setOccupation(event.target.value)}
-              className="field-input resize-y"
-              placeholder="Ej. médico, estudiante, jubilado…"
-            />
-          </div>
-
-          <fieldset>
-            <legend className="field-label mb-3">
-              ¿Algún ocupante posee discapacidad?
-            </legend>
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { value: true, label: "Sí" },
-                { value: false, label: "No" },
-              ].map((option) => (
-                <label
-                  key={String(option.value)}
-                  className={`choice-card ${
-                    hasDisability === option.value
-                      ? "choice-card-active"
-                      : "choice-card-inactive"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="hasDisability"
-                    className="sr-only"
-                    checked={hasDisability === option.value}
-                    onChange={() => {
-                      setHasDisability(option.value);
-                      if (!option.value) setDisabilityType("");
-                    }}
-                  />
-                  {option.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {hasDisability && (
+          {!hideOccupationField && (
             <div>
-              <label htmlFor="disabilityType" className="field-label">
-                ¿Qué tipo de discapacidad presenta?
+              <label htmlFor="occupation" className="field-label">
+                Ocupación o profesión de los ocupantes del apartamento
               </label>
-              <input
-                id="disabilityType"
-                type="text"
-                value={disabilityType}
-                onChange={(event) => setDisabilityType(event.target.value)}
-                className="field-input"
-                placeholder="Ej. visual, motriz, auditiva…"
+              <textarea
+                id="occupation"
+                rows={3}
+                value={occupationValue ?? occupation}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setOccupation(value);
+                  onOccupationChange?.(value);
+                }}
+                className="field-input resize-y"
+                placeholder="Ej. médico, estudiante, jubilado…"
               />
             </div>
           )}
 
-          <div className="grid gap-5 sm:grid-cols-2">
-            <div>
-              <label htmlFor="vehicleCount" className="field-label">
-                Cantidad de vehículos
-              </label>
-              <input
-                id="vehicleCount"
-                type="text"
-                inputMode="numeric"
-                value={vehicleCount}
-                onChange={(event) =>
-                  setVehicleCount(limitCountInput(event.target.value))
-                }
-                className="field-input"
-                placeholder="0"
-              />
-            </div>
+          <fieldset>
+            <legend className="field-label mb-3">
+              Estado del apartamento (infraestructura)
+            </legend>
+            <div className="infrastructure-grid">
+              {INFRASTRUCTURE_STATUS_OPTIONS.map((option) => {
+                const isSelected = infrastructureStatus === option.value;
+                const isRisk = option.value === "uninhabitable";
 
-            <div>
-              <label htmlFor="petCount" className="field-label">
-                Cantidad de mascotas
-              </label>
-              <input
-                id="petCount"
-                type="text"
-                inputMode="numeric"
-                value={petCount}
-                onChange={(event) =>
-                  setPetCount(limitCountInput(event.target.value))
-                }
-                className="field-input"
-                placeholder="0"
-              />
+                return (
+                  <label
+                    key={option.value}
+                    className={[
+                      "infrastructure-option",
+                      isSelected && "infrastructure-option-selected",
+                      isSelected && isRisk && "infrastructure-option-risk",
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  >
+                    <input
+                      type="radio"
+                      name="infrastructureStatus"
+                      className="sr-only"
+                      checked={isSelected}
+                      onChange={() => setInfrastructureStatus(option.value)}
+                    />
+                    <span
+                      className="infrastructure-option-indicator"
+                      aria-hidden="true"
+                    >
+                      {isSelected && (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                          className="h-3 w-3"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M12.416 3.376a.75.75 0 0 1 .208 1.04l-5 7.5a.75.75 0 0 1-1.154.114l-3-3a.75.75 0 0 1 1.06-1.06l2.353 2.353 4.493-6.74a.75.75 0 0 1 1.04-.207Z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="infrastructure-option-body">
+                      <span className="infrastructure-option-title">
+                        {option.label}
+                      </span>
+                      <span className="infrastructure-option-desc">
+                        {option.description}
+                      </span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <PipeStatusSelector
+            legend="Tuberías de gas"
+            name="gasPipeStatus"
+            value={gasPipeStatus}
+            onChange={setGasPipeStatus}
+          />
+
+          <PipeStatusSelector
+            legend="Tuberías de agua"
+            name="waterPipeStatus"
+            value={waterPipeStatus}
+            onChange={setWaterPipeStatus}
+          />
+
+          <div className="border-t border-stone-100 pt-4">
+            <h3 className="text-sm font-semibold text-stone-800">
+              Contacto de emergencia
+            </h3>
+            <p className="mt-1 text-xs text-stone-500">
+              Persona a contactar en caso de emergencia en el edificio.
+            </p>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="emergencyContactName" className="field-label">
+                  Nombre y apellido
+                </label>
+                <input
+                  id="emergencyContactName"
+                  type="text"
+                  autoComplete="name"
+                  value={emergencyContactName}
+                  onChange={(event) =>
+                    setEmergencyContactName(event.target.value)
+                  }
+                  className="field-input"
+                  placeholder="Ej. María González"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="emergencyContactPhone" className="field-label">
+                  Teléfono
+                </label>
+                <input
+                  id="emergencyContactPhone"
+                  type="tel"
+                  autoComplete="tel"
+                  value={emergencyContactPhone}
+                  onChange={(event) =>
+                    setEmergencyContactPhone(event.target.value)
+                  }
+                  className="field-input"
+                  placeholder="0414 1234567"
+                />
+              </div>
             </div>
           </div>
 
@@ -504,30 +655,39 @@ export const ApartmentProfileSection = forwardRef<
       ) : (
         displayEntry && (
           <dl className="mt-5 grid grid-cols-2 gap-2">
+            {!hideOccupationField && (
+              <ProfileField
+                label="Ocupación"
+                value={displayEntry.occupation}
+              />
+            )}
             <ProfileField
-              label="Ocupación"
-              value={displayEntry.occupation}
+              label="Infraestructura"
+              value={getInfrastructureStatusLabel(
+                displayEntry.infrastructureStatus,
+              )}
             />
             <ProfileField
-              label="Discapacidad"
+              label="Tuberías de gas"
+              value={getPipeStatusLabel(displayEntry.gasPipeStatus)}
+            />
+            <ProfileField
+              label="Tuberías de agua"
+              value={getPipeStatusLabel(displayEntry.waterPipeStatus)}
+            />
+            <ProfileField
+              label="Contacto de emergencia"
               value={
-                displayEntry.hasDisability
-                  ? displayEntry.disabilityType
-                    ? `Sí · ${displayEntry.disabilityType}`
-                    : "Sí"
-                  : "No"
+                displayEntry.emergencyContactName &&
+                displayEntry.emergencyContactPhone
+                  ? `${displayEntry.emergencyContactName} · ${displayEntry.emergencyContactPhone}`
+                  : "Sin registrar"
               }
-            />
-            <ProfileField
-              label="Vehículos"
-              value={String(displayEntry.vehicleCount)}
-            />
-            <ProfileField
-              label="Mascotas"
-              value={String(displayEntry.petCount)}
             />
           </dl>
         )
+      )}
+        </div>
       )}
     </section>
   );
