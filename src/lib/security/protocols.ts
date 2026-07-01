@@ -91,7 +91,7 @@ export const evacuationZones: EvacuationZone[] = [
     badge: "Punto 1",
     title: "Acceso principal — afuera del edificio",
     description:
-      "Sal por escaleras hacia la entrada de torres C y D. No uses ascensores durante la evacuación.",
+      "Sal por escaleras hacia la entrada de torres C y D. No uses ascensores durante la evacuación. Ubícate en un área segura lejos de edificios o árboles grandes.",
   },
   {
     id: "point-2",
