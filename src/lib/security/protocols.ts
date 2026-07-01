@@ -89,20 +89,13 @@ export const evacuationZones: EvacuationZone[] = [
   {
     id: "point-1",
     badge: "Punto 1",
-    title: "Plaza central / áreas verdes comunes",
-    description:
-      "Zona amplia despejada de torres y vidrios. Reúnete con tu familia y espera instrucciones de vigilancia.",
-  },
-  {
-    id: "point-2",
-    badge: "Punto 2",
     title: "Acceso principal — afuera del edificio",
     description:
       "Sal por escaleras hacia la entrada de torres C y D. No uses ascensores durante la evacuación.",
   },
   {
-    id: "point-3",
-    badge: "Punto 3",
+    id: "point-2",
+    badge: "Punto 2",
     title: "Estacionamiento exterior",
     description:
       "Si las zonas anteriores están congestionadas, dirígete al estacionamiento abierto lejos de fachadas y árboles grandes.",
