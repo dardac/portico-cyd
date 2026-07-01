@@ -168,7 +168,9 @@ export async function GET(request: Request) {
     profileByApartment,
   );
 
-  const totals = {
+  const canViewPii = canViewResidentPii(session.role);
+
+  const adminTotals = {
     apartments: apartments.length,
     answered: censusRows?.length ?? 0,
     staying: censusRows?.filter((row) => row.will_stay_overnight).length ?? 0,
@@ -184,6 +186,12 @@ export async function GET(request: Request) {
           sum + (row.will_stay_overnight ? (row.children_count ?? 0) : 0),
         0,
       ) ?? 0,
+    pets:
+      censusRows?.reduce(
+        (sum, row) =>
+          sum + (row.will_stay_overnight ? (row.pet_count ?? 0) : 0),
+        0,
+      ) ?? 0,
     people:
       censusRows?.reduce(
         (sum, row) =>
@@ -195,7 +203,14 @@ export async function GET(request: Request) {
       ) ?? 0,
   };
 
-  const canViewPii = canViewResidentPii(session.role);
+  const totals = canViewPii
+    ? adminTotals
+    : {
+        staying: adminTotals.staying,
+        adults: adminTotals.adults,
+        children: adminTotals.children,
+        pets: adminTotals.pets,
+      };
 
   return NextResponse.json({
     censusDate,
@@ -204,12 +219,19 @@ export async function GET(request: Request) {
   });
 }
 
+type VigilanteCensusSummary = {
+  willStayOvernight: boolean;
+  adultCount: number | null;
+  childrenCount: number | null;
+  petCount: number | null;
+};
+
 type MappedApartment = {
   id: string;
   code: string;
   unit: number;
   type: string;
-  census: ReturnType<typeof mapCensus> | null;
+  census: ReturnType<typeof mapCensus> | VigilanteCensusSummary | null;
   profile: ReturnType<typeof mapProfile> | null;
 };
 
@@ -226,19 +248,29 @@ function sanitizeTowersForVigilante(towers: MappedTower[]): MappedTower[] {
     ...tower,
     floors: tower.floors.map((floor) => ({
       ...floor,
-      apartments: floor.apartments.map((apartment) => ({
-        ...apartment,
-        census: apartment.census
-          ? { ...apartment.census, occupantNames: null }
-          : null,
-        profile: apartment.profile
-          ? {
-              ...apartment.profile,
-              occupation: "",
-              emergencyContactName: null,
-            }
-          : null,
-      })),
+      apartments: floor.apartments.map((apartment) => {
+        const census = apartment.census;
+        const vigilanteCensus =
+          census && "willStayOvernight" in census
+            ? {
+                willStayOvernight: census.willStayOvernight,
+                adultCount: census.willStayOvernight ? census.adultCount : null,
+                childrenCount: census.willStayOvernight
+                  ? census.childrenCount
+                  : null,
+                petCount: census.willStayOvernight ? census.petCount : null,
+              }
+            : null;
+
+        return {
+          id: apartment.id,
+          code: apartment.code,
+          unit: apartment.unit,
+          type: apartment.type,
+          census: vigilanteCensus,
+          profile: null,
+        };
+      }),
     })),
   }));
 }

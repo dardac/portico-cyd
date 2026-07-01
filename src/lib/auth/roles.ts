@@ -20,12 +20,12 @@ export function isStaffSession(
   return session?.type === "admin";
 }
 
-/** Acceso completo al panel (exportar, etc.). Vigilantes: restricciones futuras. */
+/** Acceso completo al panel (exportar, usuarios, registro completo). */
 export function hasFullAdminAccess(session: StaffSession): boolean {
   return session.role === "admin";
 }
 
-/** Nombres de ocupantes, ocupación y nombre del contacto de emergencia. */
+/** Registro completo, PII y perfil del apartamento. Vigilante: solo conteos básicos. */
 export function canViewResidentPii(role: StaffRole): boolean {
   return role === "admin";
 }

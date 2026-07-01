@@ -6,7 +6,7 @@ import {
   copyTextToClipboard,
 } from "@/lib/census/copy-results";
 import { formatCensusPeople } from "@/lib/census/format-people";
-import { downloadCensusExcel } from "@/lib/census/export-excel";
+import { downloadCensusExcel, type CensusExportData } from "@/lib/census/export-excel";
 import { formatDateInCaracas, getTodayInCaracas } from "@/lib/dates";
 import type { StaffRole } from "@/lib/auth/roles";
 import { canViewResidentPii } from "@/lib/auth/roles";
@@ -27,22 +27,27 @@ type ApartmentProfile = {
   updatedAt: string;
 };
 
+type VigilanteCensus = {
+  willStayOvernight: boolean;
+  adultCount: number | null;
+  childrenCount: number | null;
+  petCount: number | null;
+};
+
+type AdminCensus = VigilanteCensus & {
+  occupantNames: string | null;
+  hasDisability: boolean | null;
+  disabilityType: string | null;
+  vehicleCount: number | null;
+  updatedAt: string;
+};
+
 type CensusApartment = {
   id: string;
   code: string;
   unit: number;
   type: string;
-  census: {
-    willStayOvernight: boolean;
-    adultCount: number | null;
-    childrenCount: number | null;
-    occupantNames: string | null;
-    hasDisability: boolean | null;
-    disabilityType: string | null;
-    vehicleCount: number | null;
-    petCount: number | null;
-    updatedAt: string;
-  } | null;
+  census: AdminCensus | VigilanteCensus | null;
   profile: ApartmentProfile | null;
 };
 
@@ -57,15 +62,27 @@ type TowerData = {
 type CensusResponse = {
   censusDate: string;
   totals: {
-    apartments: number;
-    answered: number;
-    staying: number;
     adults: number;
     children: number;
-    people: number;
+    pets?: number;
+    apartments?: number;
+    answered?: number;
+    staying?: number;
+    people?: number;
   };
   towers: TowerData[];
 };
+
+function isAdminCensus(
+  census: AdminCensus | VigilanteCensus,
+): census is AdminCensus {
+  return "occupantNames" in census;
+}
+
+function formatCount(value: number | null | undefined): string {
+  if (value === null || value === undefined) return "—";
+  return String(value);
+}
 
 function IconDownload() {
   return (
@@ -132,9 +149,35 @@ function InfrastructureBadge({ profile }: { profile: ApartmentProfile | null }) 
   return null;
 }
 
-function CensusBadge({ apartment }: { apartment: CensusApartment }) {
+function CensusBadge({
+  apartment,
+  canViewPii,
+}: {
+  apartment: CensusApartment;
+  canViewPii: boolean;
+}) {
   if (!apartment.census) {
     return <span className="badge-neutral">Sin respuesta</span>;
+  }
+
+  if (!canViewPii) {
+    const census = apartment.census;
+
+    if (!census.willStayOvernight) {
+      return <span className="badge-muted">No pernocta</span>;
+    }
+
+    return (
+      <span className="badge-success">
+        Sí · {formatCount(census.adultCount)} adultos ·{" "}
+        {formatCount(census.childrenCount)} niños · {formatCount(census.petCount)}{" "}
+        mascotas
+      </span>
+    );
+  }
+
+  if (!isAdminCensus(apartment.census)) {
+    return null;
   }
 
   if (!apartment.census.willStayOvernight) {
@@ -152,17 +195,9 @@ function CensusBadge({ apartment }: { apartment: CensusApartment }) {
   );
 }
 
-function formatCensusDisability(
-  census: NonNullable<CensusApartment["census"]>,
-): string {
+function formatCensusDisability(census: AdminCensus): string {
   if (census.hasDisability === null) return "—";
   return census.hasDisability ? "Sí" : "No";
-}
-
-function formatDisability(census: NonNullable<CensusApartment["census"]>) {
-  if (census.hasDisability === null) return "—";
-  if (!census.hasDisability) return "No";
-  return census.disabilityType ? `Sí · ${census.disabilityType}` : "Sí";
 }
 
 function whenStaying(
@@ -242,8 +277,10 @@ function AdminApartmentRow({
           <span className="admin-apt-code">{apartment.code}</span>
           {!expanded && (
             <span className="flex flex-wrap items-center gap-1.5">
-              <CensusBadge apartment={apartment} />
-              <InfrastructureBadge profile={apartment.profile} />
+              <CensusBadge apartment={apartment} canViewPii={canViewPii} />
+              {canViewPii && (
+                <InfrastructureBadge profile={apartment.profile} />
+              )}
             </span>
           )}
         </span>
@@ -270,111 +307,124 @@ function AdminApartmentRow({
             <section className="admin-apt-tag-group">
               <h4 className="admin-apt-panel-title">Registro diario</h4>
               {apartment.census ? (
-                <div className="admin-apt-tag-list">
-                  <DetailTag
-                    full
-                    label="Pernocta"
-                    value={apartment.census.willStayOvernight ? "Sí" : "No"}
-                  />
-                  <DetailTagPair>
+                canViewPii && isAdminCensus(apartment.census) ? (
+                  <div className="admin-apt-tag-list">
                     <DetailTag
-                      short
-                      label="Adultos"
-                      value={whenStaying(
-                        apartment.census.willStayOvernight,
-                        apartment.census.adultCount,
-                      )}
+                      full
+                      label="Pernocta"
+                      value={
+                        apartment.census.willStayOvernight ? "Sí" : "No"
+                      }
                     />
-                    <DetailTag
-                      short
-                      label="Niños y adolescentes"
-                      value={whenStaying(
-                        apartment.census.willStayOvernight,
-                        apartment.census.childrenCount,
-                      )}
-                    />
-                  </DetailTagPair>
-                  {canViewPii && (
-                    <>
+                    <DetailTagPair>
                       <DetailTag
-                        full
-                        label="Ocupación"
-                        value={apartment.profile?.occupation ?? "—"}
-                      />
-                      <DetailTag
-                        full
-                        label="Ocupantes"
+                        short
+                        label="Adultos"
                         value={whenStaying(
                           apartment.census.willStayOvernight,
-                          apartment.census.occupantNames,
+                          apartment.census.adultCount,
                         )}
                       />
-                    </>
-                  )}
-                  {canViewPii ? (
-                    <>
                       <DetailTag
-                        full
-                        label="Discapacidad"
-                        value={formatCensusDisability(apartment.census)}
+                        short
+                        label="Niños y adolescentes"
+                        value={whenStaying(
+                          apartment.census.willStayOvernight,
+                          apartment.census.childrenCount,
+                        )}
+                      />
+                    </DetailTagPair>
+                    <DetailTag
+                      full
+                      label="Ocupación"
+                      value={apartment.profile?.occupation ?? "—"}
+                    />
+                    <DetailTag
+                      full
+                      label="Ocupantes"
+                      value={whenStaying(
+                        apartment.census.willStayOvernight,
+                        apartment.census.occupantNames,
+                      )}
+                    />
+                    <DetailTag
+                      full
+                      label="Discapacidad"
+                      value={formatCensusDisability(apartment.census)}
+                    />
+                    <DetailTag
+                      full
+                      label="Tipo discapacidad"
+                      value={
+                        apartment.census.hasDisability
+                          ? apartment.census.disabilityType ?? "—"
+                          : "—"
+                      }
+                    />
+                    <DetailTagPair>
+                      <DetailTag
+                        short
+                        label="Vehículos"
+                        value={whenStaying(
+                          apartment.census.willStayOvernight,
+                          apartment.census.vehicleCount,
+                        )}
                       />
                       <DetailTag
-                        full
-                        label="Tipo discapacidad"
-                        value={
-                          apartment.census.hasDisability
-                            ? apartment.census.disabilityType ?? "—"
-                            : "—"
-                        }
+                        short
+                        label="Mascotas"
+                        value={whenStaying(
+                          apartment.census.willStayOvernight,
+                          apartment.census.petCount,
+                        )}
                       />
-                      <DetailTagPair>
-                        <DetailTag
-                          short
-                          label="Vehículos"
-                          value={whenStaying(
-                            apartment.census.willStayOvernight,
-                            apartment.census.vehicleCount,
-                          )}
-                        />
-                        <DetailTag
-                          short
-                          label="Mascotas"
-                          value={whenStaying(
-                            apartment.census.willStayOvernight,
-                            apartment.census.petCount,
-                          )}
-                        />
-                      </DetailTagPair>
-                    </>
-                  ) : (
-                    apartment.census.willStayOvernight && (
-                      <>
-                        <DetailTag
-                          full
-                          label="Discapacidad"
-                          value={formatDisability(apartment.census)}
-                        />
-                        <DetailTagPair>
-                          <DetailTag
-                            short
-                            label="Vehículos"
-                            value={String(apartment.census.vehicleCount ?? "—")}
-                          />
-                          <DetailTag
-                            short
-                            label="Mascotas"
-                            value={String(apartment.census.petCount ?? "—")}
-                          />
-                        </DetailTagPair>
-                      </>
-                    )
-                  )}
-                </div>
+                    </DetailTagPair>
+                  </div>
+                ) : (
+                  <div className="admin-apt-tag-list">
+                    <DetailTag
+                      full
+                      label="Pernocta"
+                      value={
+                        apartment.census.willStayOvernight ? "Sí" : "No"
+                      }
+                    />
+                    <DetailTagPair>
+                      <DetailTag
+                        short
+                        label="Adultos"
+                        value={whenStaying(
+                          apartment.census.willStayOvernight,
+                          apartment.census.adultCount,
+                        )}
+                      />
+                      <DetailTag
+                        short
+                        label="Niños y adolescentes"
+                        value={whenStaying(
+                          apartment.census.willStayOvernight,
+                          apartment.census.childrenCount,
+                        )}
+                      />
+                    </DetailTagPair>
+                    <DetailTag
+                      short
+                      label="Mascotas"
+                      value={whenStaying(
+                        apartment.census.willStayOvernight,
+                        apartment.census.petCount,
+                      )}
+                    />
+                  </div>
+                )
               ) : (
-                <span className="admin-apt-tag-empty">Sin respuesta de registro diario</span>
+                <span className="admin-apt-tag-empty">
+                  Sin respuesta de registro diario
+                </span>
               )}
             </section>
 
+            {canViewPii && (
             <section className="admin-apt-tag-group">
               <h4 className="admin-apt-panel-title">Apartamento</h4>
               {apartment.profile ? (
@@ -406,6 +456,7 @@ function AdminApartmentRow({
                 <span className="admin-apt-tag-empty">Sin perfil este día</span>
               )}
             </section>
+            )}
           </div>
         </div>
       )}
@@ -659,14 +710,14 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
   }
 
   async function handleExportExcel() {
-    if (!data) return;
-    downloadCensusExcel(data);
+    if (!data || !canViewPii) return;
+    downloadCensusExcel(data as CensusExportData);
   }
 
   async function handleCopyResults() {
-    if (!data) return;
+    if (!data || !canViewPii) return;
 
-    const text = buildCensusCopyText(data);
+    const text = buildCensusCopyText(data as Parameters<typeof buildCensusCopyText>[0]);
     const copied = await copyTextToClipboard(text);
     setCopyState(copied ? "copied" : "error");
 
@@ -676,9 +727,29 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
   }
 
   const responseRate =
-    data && data.totals.apartments > 0
-      ? Math.round((data.totals.answered / data.totals.apartments) * 100)
+    canViewPii &&
+    data &&
+    (data.totals.apartments ?? 0) > 0
+      ? Math.round(
+          ((data.totals.answered ?? 0) / (data.totals.apartments ?? 1)) * 100,
+        )
       : 0;
+
+  const summaryStats = canViewPii
+    ? [
+        { label: "Apartamentos", value: data?.totals.apartments ?? 0 },
+        { label: "Respondieron", value: data?.totals.answered ?? 0 },
+        { label: "Pernoctan", value: data?.totals.staying ?? 0 },
+        { label: "Adultos", value: data?.totals.adults ?? 0 },
+        { label: "Niños/adoles.", value: data?.totals.children ?? 0 },
+        { label: "Total personas", value: data?.totals.people ?? 0 },
+      ]
+    : [
+        { label: "Pernoctan", value: data?.totals.staying ?? 0 },
+        { label: "Adultos", value: data?.totals.adults ?? 0 },
+        { label: "Niños/adoles.", value: data?.totals.children ?? 0 },
+        { label: "Mascotas", value: data?.totals.pets ?? 0 },
+      ];
 
   return (
     <div className="page-content space-y-6">
@@ -748,14 +819,7 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
       {data && (
         <div className="space-y-4">
           <div className="stats-bar">
-            {[
-              { label: "Apartamentos", value: data.totals.apartments },
-              { label: "Respondieron", value: data.totals.answered },
-              { label: "Pernoctan", value: data.totals.staying },
-              { label: "Adultos", value: data.totals.adults },
-              { label: "Niños/adoles.", value: data.totals.children },
-              { label: "Total personas", value: data.totals.people },
-            ].map((stat) => (
+            {summaryStats.map((stat) => (
               <div key={stat.label} className="stats-bar-item">
                 <p className="text-xs font-medium tracking-wide text-stone-500 uppercase">
                   {stat.label}
@@ -864,17 +928,19 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
             <p className="text-sm text-stone-500">
               {formatDateInCaracas(data.censusDate)}
             </p>
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100 sm:max-w-48">
-                <div
-                  className="h-full rounded-full bg-brick transition-all"
-                  style={{ width: `${responseRate}%` }}
-                />
+            {canViewPii && (
+              <div className="flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-stone-100 sm:max-w-48">
+                  <div
+                    className="h-full rounded-full bg-brick transition-all"
+                    style={{ width: `${responseRate}%` }}
+                  />
+                </div>
+                <span className="text-xs font-medium text-stone-500">
+                  {responseRate}% respondido
+                </span>
               </div>
-              <span className="text-xs font-medium text-stone-500">
-                {responseRate}% respondido
-              </span>
-            </div>
+            )}
           </div>
         </div>
       )}
