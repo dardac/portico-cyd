@@ -1,3 +1,5 @@
+import { APP_NAME, BUILDING_NAME, BUILDING_SUBTITLE } from "@/lib/branding";
+
 type AuthLayoutProps = {
   eyebrow: string;
   title?: string;
@@ -8,8 +10,8 @@ type AuthLayoutProps = {
 
 export function AuthLayout({
   eyebrow,
-  title = "Pórtico del Ávila",
-  subtitle = "Torres C y D",
+  title = BUILDING_NAME,
+  subtitle = BUILDING_SUBTITLE,
   children,
   footer,
 }: AuthLayoutProps) {
@@ -20,7 +22,8 @@ export function AuthLayout({
           {/* <div className="mx-auto mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-stone-900 text-sm font-semibold text-white">
             PA
           </div> */}
-          <p className="page-eyebrow">{eyebrow}</p>
+          <p className="app-brand">{APP_NAME}</p>
+          <p className="page-eyebrow mt-3">{eyebrow}</p>
           <h1 className="page-title">{title}</h1>
           <p className="page-subtitle">{subtitle}</p>
         </div>
@@ -32,7 +35,7 @@ export function AuthLayout({
 
       {footer ?? (
         <footer className="px-4 pb-8 text-center text-xs text-stone-400 sm:px-6">
-          Caracas, Venezuela
+          {APP_NAME} · Caracas, Venezuela
         </footer>
       )}
     </div>

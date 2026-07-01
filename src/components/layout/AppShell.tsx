@@ -10,6 +10,7 @@ import {
   isStaffSession,
 } from "@/lib/auth/roles";
 import { getStaffRoleLabel } from "@/lib/auth/roles";
+import { APP_NAME, BUILDING_NAME, BUILDING_SUBTITLE } from "@/lib/branding";
 
 type AppShellProps = {
   session: AppSession;
@@ -94,11 +95,14 @@ export function AppShell({ session, children }: AppShellProps) {
 
             <div className="flex items-center gap-2.5">
               <div>
+                <p className="text-xs font-semibold tracking-wide text-brick uppercase">
+                  {APP_NAME}
+                </p>
                 <p className="text-sm font-semibold tracking-tight text-stone-900">
-                  Pórtico del Ávila
+                  {BUILDING_NAME}
                 </p>
                 <p className="hidden text-xs text-stone-500 sm:block">
-                  Torres C y D
+                  {BUILDING_SUBTITLE}
                 </p>
               </div>
             </div>

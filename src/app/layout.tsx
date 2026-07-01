@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { APP_NAME, BUILDING_NAME, BUILDING_SUBTITLE } from "@/lib/branding";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,9 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Pórtico del Ávila — Torres C y D",
-  description:
-    "Gestión de residentes y comisiones de reparación del edificio Pórtico del Ávila, torres C y D.",
+  title: {
+    default: `${APP_NAME} — ${BUILDING_NAME}`,
+    template: `%s · ${APP_NAME}`,
+  },
+  description: `${APP_NAME}: gestión de residentes y comisiones de reparación del edificio ${BUILDING_NAME}, ${BUILDING_SUBTITLE}.`,
+  applicationName: APP_NAME,
 };
 
 export default function RootLayout({

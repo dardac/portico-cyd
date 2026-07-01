@@ -694,6 +694,10 @@
     @apply text-xs font-medium tracking-widest text-stone-500 uppercase;
   }
 
+  .app-brand {
+    @apply text-sm font-semibold tracking-tight text-brick;
+  }
+
   .page-title {
     @apply mt-3 text-2xl font-semibold tracking-tight text-stone-900 sm:text-3xl;
   }
