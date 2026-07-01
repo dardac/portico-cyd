@@ -23,7 +23,7 @@ export function EditUserProfilePage() {
 
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6">
         <EditUserProfileForm
-          cancelHref="/censo"
+          cancelHref="/registro"
           onSuccess={() => setSaved(true)}
         />
       </div>

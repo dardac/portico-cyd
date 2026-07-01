@@ -20,7 +20,7 @@ type NavItem = { href: string; label: string };
 
 function getNavItems(session: AppSession): NavItem[] {
   const items: NavItem[] = [
-    { href: "/censo", label: "Censo diario" },
+    { href: "/registro", label: "Registro diario" },
     { href: "/cartelera", label: "Cartelera de Apoyo" },
     { href: "/protocolos", label: "Protocolos de Seguridad" },
   ];

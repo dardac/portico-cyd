@@ -118,7 +118,7 @@ export const buildingProtocols: BuildingProtocol[] = [
       "Mantén la calma y aleja a niños y personas con movilidad reducida del peligro.",
       "Avisa de inmediato a la garita o vigilancia del Pórtico del Ávila.",
       "Comunica torre, piso y apartamento al marcar emergencias.",
-      "Registra el censo diario: ayuda a saber quién pernocta en el edificio.",
+      "Registro diario: ayuda a saber quién pernocta en el edificio.",
     ],
   },
   {
@@ -129,7 +129,7 @@ export const buildingProtocols: BuildingProtocol[] = [
       "Protégete bajo una mesa resistente o junto a un muro estructural, lejos de ventanas.",
       "Al cesar el movimiento, evalúa daños antes de salir.",
       "Usa escaleras; revisa fisuras, humo u olor a gas.",
-      "Reporta daños en tu apartamento en el perfil del censo (infraestructura).",
+      "Reporta daños en tu apartamento en el perfil del registro diario (infraestructura).",
     ],
   },
   {

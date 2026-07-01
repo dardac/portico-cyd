@@ -10,6 +10,11 @@ import { downloadCensusExcel } from "@/lib/census/export-excel";
 import { formatDateInCaracas, getTodayInCaracas } from "@/lib/dates";
 import type { StaffRole } from "@/lib/auth/roles";
 import { canViewResidentPii } from "@/lib/auth/roles";
+import {
+  formatApartmentInput,
+  isValidApartment,
+  normalizeApartmentCode,
+} from "@/lib/validators";
 
 type ApartmentProfile = {
   occupation: string;
@@ -263,7 +268,7 @@ function AdminApartmentRow({
         <div id={panelId} className="admin-apt-panel">
           <div className="admin-apt-tags">
             <section className="admin-apt-tag-group">
-              <h4 className="admin-apt-panel-title">Censo</h4>
+              <h4 className="admin-apt-panel-title">Registro diario</h4>
               {apartment.census ? (
                 <div className="admin-apt-tag-list">
                   <DetailTag
@@ -366,7 +371,7 @@ function AdminApartmentRow({
                   )}
                 </div>
               ) : (
-                <span className="admin-apt-tag-empty">Sin respuesta de censo</span>
+                <span className="admin-apt-tag-empty">Sin respuesta de registro diario</span>
               )}
             </section>
 
@@ -408,6 +413,121 @@ function AdminApartmentRow({
   );
 }
 
+type TowerFilter = "all" | "C" | "D";
+
+function filterCensusTowers(
+  towers: TowerData[],
+  towerFilter: TowerFilter,
+  apartmentFilter: string,
+): TowerData[] {
+  let filtered = towers;
+
+  if (towerFilter !== "all") {
+    filtered = filtered.filter((tower) => tower.code === towerFilter);
+  }
+
+  const normalizedApartment = apartmentFilter.trim()
+    ? normalizeApartmentCode(apartmentFilter)
+    : "";
+
+  if (normalizedApartment && isValidApartment(apartmentFilter)) {
+    filtered = filtered
+      .map((tower) => ({
+        ...tower,
+        floors: tower.floors
+          .map((floor) => ({
+            ...floor,
+            apartments: floor.apartments.filter(
+              (apartment) =>
+                normalizeApartmentCode(apartment.code) === normalizedApartment,
+            ),
+          }))
+          .filter((floor) => floor.apartments.length > 0),
+      }))
+      .filter((tower) => tower.floors.length > 0);
+  }
+
+  return filtered;
+}
+
+function countVisibleApartments(towers: TowerData[]): number {
+  return towers.reduce(
+    (total, tower) =>
+      total +
+      tower.floors.reduce(
+        (floorTotal, floor) => floorTotal + floor.apartments.length,
+        0,
+      ),
+    0,
+  );
+}
+
+function AdminTowerSection({
+  tower,
+  collapsed,
+  onToggle,
+  canViewPii,
+}: {
+  tower: TowerData;
+  collapsed: boolean;
+  onToggle: () => void;
+  canViewPii: boolean;
+}) {
+  const panelId = useId();
+  const apartmentCount = countVisibleApartments([tower]);
+
+  return (
+    <section className="admin-tower-section">
+      <button
+        type="button"
+        className="admin-tower-trigger"
+        aria-expanded={!collapsed}
+        aria-controls={panelId}
+        onClick={onToggle}
+      >
+        <span className="admin-tower-trigger-main">
+          <h2 className="section-title text-base">Torre {tower.code}</h2>
+          <span className="admin-tower-trigger-meta">
+            {apartmentCount} apartamento{apartmentCount === 1 ? "" : "s"}
+          </span>
+        </span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden
+          className={`admin-apt-chevron ${collapsed ? "" : "admin-apt-chevron-open"}`}
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+
+      {!collapsed && (
+        <div id={panelId} className="admin-tower-body">
+          {tower.floors.map((floor) => (
+            <div key={floor.label} className="admin-floor-block">
+              <h3 className="admin-floor-label">{floor.label}</h3>
+              <div className="admin-apt-list">
+                {floor.apartments.map((apartment) => (
+                  <AdminApartmentRow
+                    key={apartment.id}
+                    apartment={apartment}
+                    canViewPii={canViewPii}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 type AdminCensusDashboardProps = {
   staffRole: StaffRole;
 };
@@ -421,6 +541,74 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
     "idle",
   );
+  const [towerFilter, setTowerFilter] = useState<TowerFilter>("all");
+  const [apartmentFilter, setApartmentFilter] = useState("");
+  const [collapsedTowers, setCollapsedTowers] = useState<
+    Record<string, boolean>
+  >({});
+
+  const apartmentFilterError =
+    apartmentFilter.trim() && !isValidApartment(apartmentFilter)
+      ? "Usa el formato piso+unidad-letra (ej. 11-D), NT/PH + número + letra (ej. NT1-D)."
+      : null;
+
+  const filteredTowers =
+    data && !apartmentFilterError
+      ? filterCensusTowers(data.towers, towerFilter, apartmentFilter)
+      : [];
+
+  const hasActiveFilters =
+    towerFilter !== "all" ||
+    (apartmentFilter.trim() !== "" && !apartmentFilterError);
+
+  const visibleApartmentCount = countVisibleApartments(filteredTowers);
+
+  function toggleTowerCollapse(towerCode: string) {
+    setCollapsedTowers((current) => ({
+      ...current,
+      [towerCode]: !current[towerCode],
+    }));
+  }
+
+  function handleTowerFilterChange(nextFilter: TowerFilter) {
+    setTowerFilter(nextFilter);
+    if (nextFilter !== "all") {
+      setCollapsedTowers((current) => ({
+        ...current,
+        [nextFilter]: false,
+      }));
+    }
+  }
+
+  function handleApartmentFilterChange(value: string) {
+    const formatted = formatApartmentInput(value);
+    setApartmentFilter(formatted);
+
+    if (formatted.trim() && isValidApartment(formatted) && data) {
+      const matchingTower = data.towers.find((tower) =>
+        tower.floors.some((floor) =>
+          floor.apartments.some(
+            (apartment) =>
+              normalizeApartmentCode(apartment.code) ===
+              normalizeApartmentCode(formatted),
+          ),
+        ),
+      );
+
+      if (matchingTower) {
+        setTowerFilter(matchingTower.code as TowerFilter);
+        setCollapsedTowers((current) => ({
+          ...current,
+          [matchingTower.code]: false,
+        }));
+      }
+    }
+  }
+
+  function clearFilters() {
+    setTowerFilter("all");
+    setApartmentFilter("");
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -435,7 +623,7 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
         if (cancelled) return;
 
         if (!response.ok) {
-          setError(payload.error ?? "No se pudo cargar el censo.");
+          setError(payload.error ?? "No se pudo cargar el registro.");
           setData(null);
           setCopyState("idle");
           return;
@@ -446,7 +634,7 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
         setCopyState("idle");
       } catch {
         if (cancelled) return;
-        setError("Error de conexión al cargar el censo.");
+        setError("Error de conexión al cargar el registro.");
         setData(null);
         setCopyState("idle");
       } finally {
@@ -497,7 +685,7 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
       <header className="page-header">
         <div className="page-header-row">
           <div className="page-header-main">
-            <h1 className="page-title">Censo diario</h1>
+            <h1 className="page-title">Diario diario</h1>
             <p className="page-subtitle">Vista por torres y pisos</p>
           </div>
 
@@ -569,7 +757,7 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
               { label: "Total personas", value: data.totals.people },
             ].map((stat) => (
               <div key={stat.label} className="stats-bar-item">
-                <p className="text-[11px] font-medium tracking-wide text-stone-400 uppercase">
+                <p className="text-xs font-medium tracking-wide text-stone-500 uppercase">
                   {stat.label}
                 </p>
                 <p className="mt-1 text-2xl font-semibold tracking-tight text-stone-900">
@@ -577,6 +765,99 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
                 </p>
               </div>
             ))}
+          </div>
+
+          <div className="app-card-compact space-y-4">
+            <div className="census-filter-bar">
+              <div className="census-filter-field">
+                <p id="census-tower-filter-label" className="field-label">
+                  Torre
+                </p>
+                <div
+                  className="bulletin-filters census-filter-chips"
+                  role="group"
+                  aria-labelledby="census-tower-filter-label"
+                >
+                  {(
+                    [
+                      { value: "all", label: "Todas" },
+                      { value: "C", label: "Torre C" },
+                      { value: "D", label: "Torre D" },
+                    ] as const
+                  ).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      aria-pressed={towerFilter === option.value}
+                      onClick={() => handleTowerFilterChange(option.value)}
+                      className={`bulletin-filter-chip ${
+                        towerFilter === option.value
+                          ? "bulletin-filter-chip--active"
+                          : ""
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="census-filter-field census-filter-field--apartment">
+                <label htmlFor="census-apartment-filter" className="field-label">
+                  Apartamento
+                </label>
+                <input
+                  id="census-apartment-filter"
+                  type="text"
+                  inputMode="text"
+                  value={apartmentFilter}
+                  onChange={(event) =>
+                    handleApartmentFilterChange(event.target.value)
+                  }
+                  placeholder="11-D, NT1-D, PH3-C"
+                  aria-invalid={Boolean(apartmentFilterError)}
+                  aria-describedby={
+                    apartmentFilterError
+                      ? "census-apartment-filter-error"
+                      : "census-apartment-filter-hint"
+                  }
+                  className="field-input"
+                />
+                {apartmentFilterError ? (
+                  <p
+                    id="census-apartment-filter-error"
+                    className="field-error"
+                    role="alert"
+                  >
+                    {apartmentFilterError}
+                  </p>
+                ) : (
+                  <p
+                    id="census-apartment-filter-hint"
+                    className="field-hint"
+                  >
+                    Deja vacío para ver todos los apartamentos.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-stone-100 pt-3">
+                <p className="text-sm text-stone-500" role="status">
+                  Mostrando {visibleApartmentCount} apartamento
+                  {visibleApartmentCount === 1 ? "" : "s"}
+                  {apartmentFilterError ? " (corrige el formato del apartamento)" : ""}
+                </p>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="btn-ghost"
+                >
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2 rounded-xl border border-stone-200/60 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
@@ -606,33 +887,38 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
 
       {isLoading ? (
         <div className="app-card py-16 text-center text-sm text-stone-400">
-          Cargando censo…
+          Cargando registro…
+        </div>
+      ) : filteredTowers.length === 0 ? (
+        <div className="bulletin-empty">
+          <p className="bulletin-empty-title">
+            {apartmentFilterError
+              ? "Formato de apartamento inválido"
+              : "No hay apartamentos con estos filtros"}
+          </p>
+          <p className="bulletin-empty-text">
+            {apartmentFilterError
+              ? "Corrige el código del apartamento o limpia los filtros."
+              : "Prueba otra torre o borra el filtro de apartamento."}
+          </p>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="btn-ghost mt-4"
+          >
+            Limpiar filtros
+          </button>
         </div>
       ) : (
         <div className="admin-tower-stack">
-          {data?.towers.map((tower) => (
-            <section key={tower.code} className="admin-tower-section">
-              <div className="admin-tower-header">
-                <h2 className="section-title text-base">Torre {tower.code}</h2>
-              </div>
-
-              <div className="admin-tower-body">
-                {tower.floors.map((floor) => (
-                  <div key={floor.label} className="admin-floor-block">
-                    <h3 className="admin-floor-label">{floor.label}</h3>
-                    <div className="admin-apt-list">
-                      {floor.apartments.map((apartment) => (
-                        <AdminApartmentRow
-                          key={apartment.id}
-                          apartment={apartment}
-                          canViewPii={canViewPii}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+          {filteredTowers.map((tower) => (
+            <AdminTowerSection
+              key={tower.code}
+              tower={tower}
+              collapsed={collapsedTowers[tower.code] ?? false}
+              onToggle={() => toggleTowerCollapse(tower.code)}
+              canViewPii={canViewPii}
+            />
           ))}
         </div>
       )}

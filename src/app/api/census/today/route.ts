@@ -139,12 +139,12 @@ export async function GET() {
     .maybeSingle();
 
   if (todayError) {
-    console.error("Error al leer censo:", todayError.message);
+    console.error("Error al leer registro:", todayError.message);
     return NextResponse.json(
       {
         error: mapSupabaseError(
           todayError,
-          "No se pudo cargar el censo de hoy.",
+          "No se pudo cargar el registro de hoy.",
         ),
       },
       { status: 500 },
@@ -168,12 +168,12 @@ export async function GET() {
     .maybeSingle();
 
   if (yesterdayError) {
-    console.error("Error al leer censo de ayer:", yesterdayError.message);
+    console.error("Error al leer registro de ayer:", yesterdayError.message);
     return NextResponse.json(
       {
         error: mapSupabaseError(
           yesterdayError,
-          "No se pudo cargar el censo de hoy.",
+          "No se pudo cargar el registro de hoy.",
         ),
       },
       { status: 500 },
@@ -271,10 +271,10 @@ export async function PUT(request: Request) {
     .single();
 
   if (error) {
-    console.error("Error al guardar censo:", error.message);
+    console.error("Error al guardar registro:", error.message);
     return NextResponse.json(
       {
-        error: mapSupabaseError(error, "No se pudo guardar el censo."),
+        error: mapSupabaseError(error, "No se pudo guardar el registro."),
       },
       { status: 500 },
     );

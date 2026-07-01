@@ -326,6 +326,10 @@
     @apply sticky bottom-0 z-10 mt-8 border-t border-stone-200/60 bg-stone-50/95 px-4 py-4 backdrop-blur-sm;
   }
 
+  .save-bar-feedback {
+    @apply mb-3 space-y-3;
+  }
+
   .btn-save-global {
     display: flex;
     width: auto;
@@ -493,7 +497,7 @@
   }
 
   .profile-section-header {
-    @apply flex items-center gap-2;
+    @apply flex w-full items-center justify-between gap-2;
   }
 
   .profile-collapse-trigger {
@@ -535,12 +539,40 @@
     @apply bg-white px-4 py-4;
   }
 
+  .census-filter-bar {
+    @apply flex flex-col gap-5 sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-8 sm:gap-y-4;
+  }
+
+  .census-filter-field {
+    @apply min-w-0 space-y-2;
+  }
+
+  .census-filter-field--apartment {
+    @apply w-full sm:max-w-xs sm:flex-1;
+  }
+
+  .census-filter-chips {
+    @apply mx-0 flex-wrap overflow-visible pb-0;
+  }
+
   .admin-tower-stack {
     @apply flex flex-col gap-8;
   }
 
   .admin-tower-section {
     @apply overflow-hidden rounded-xl border border-stone-200/60 bg-white;
+  }
+
+  .admin-tower-trigger {
+    @apply flex w-full items-center justify-between gap-3 border-b border-stone-100 px-5 py-3.5 text-left transition hover:bg-stone-50/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brick/25;
+  }
+
+  .admin-tower-trigger-main {
+    @apply flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:items-baseline sm:gap-3;
+  }
+
+  .admin-tower-trigger-meta {
+    @apply text-xs font-medium text-stone-500;
   }
 
   .admin-tower-header {

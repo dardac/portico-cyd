@@ -27,7 +27,7 @@ type EditUserProfileFormProps = {
 
 export function EditUserProfileForm({
   onSuccess,
-  cancelHref = "/censo",
+  cancelHref = "/registro",
 }: EditUserProfileFormProps) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [email, setEmail] = useState("");

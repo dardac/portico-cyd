@@ -1,4 +1,4 @@
-/** Roles del personal con acceso al panel (/admin, censo admin). */
+/** Roles del personal con acceso al panel (/admin, registro admin). */
 export const STAFF_ROLES = ["admin", "vigilante"] as const;
 
 export type StaffRole = (typeof STAFF_ROLES)[number];

@@ -22,18 +22,18 @@ export async function proxy(request: NextRequest) {
 
   if (PUBLIC_PATHS.includes(pathname)) {
     if (session && pathname === "/") {
-      return NextResponse.redirect(new URL("/censo", request.url));
+      return NextResponse.redirect(new URL("/registro", request.url));
     }
 
     if (isStaffSession(session) && pathname === "/admin") {
-      return NextResponse.redirect(new URL("/censo", request.url));
+      return NextResponse.redirect(new URL("/registro", request.url));
     }
 
     return NextResponse.next();
   }
 
   if (
-    pathname.startsWith("/censo") ||
+    pathname.startsWith("/registro") ||
     pathname.startsWith("/protocolos") ||
     pathname.startsWith("/cartelera") ||
     pathname.startsWith("/perfil") ||
@@ -54,7 +54,7 @@ export async function proxy(request: NextRequest) {
     }
 
     if (!isStaffSession(session) || !hasFullAdminAccess(session)) {
-      return NextResponse.redirect(new URL("/censo", request.url));
+      return NextResponse.redirect(new URL("/registro", request.url));
     }
 
     return NextResponse.next();
@@ -86,7 +86,7 @@ export const config = {
   matcher: [
     "/",
     "/admin",
-    "/censo/:path*",
+    "/registro/:path*",
     "/protocolos/:path*",
     "/cartelera/:path*",
     "/perfil/:path*",

@@ -79,13 +79,15 @@ type ApartmentProfileSectionProps = {
   occupationValue?: string;
   onOccupationChange?: (value: string) => void;
   onProfileLoaded?: (data: { occupation: string }) => void;
+  onEditingChange?: (isEditing: boolean) => void;
+  onNeedsSaveChange?: (needsSave: boolean) => void;
 };
 
 export const ApartmentProfileSection = forwardRef<
   ApartmentProfileSectionHandle,
   ApartmentProfileSectionProps
 >(function ApartmentProfileSection(
-  { variant = "default", integration = "standalone", hideOccupationField = false, requireOccupation = true, occupationValue, onOccupationChange, onProfileLoaded },
+  { variant = "default", integration = "standalone", hideOccupationField = false, requireOccupation = true, occupationValue, onOccupationChange, onProfileLoaded, onEditingChange, onNeedsSaveChange },
   ref,
 ) {
   const isCombined = integration === "combined";
@@ -139,6 +141,14 @@ export const ApartmentProfileSection = forwardRef<
     setSuccess(false);
     setError(null);
   }
+
+  useEffect(() => {
+    onEditingChange?.(isEditing);
+  }, [isEditing, onEditingChange]);
+
+  useEffect(() => {
+    onNeedsSaveChange?.(isEditing || !isSaved);
+  }, [isEditing, isSaved, onNeedsSaveChange]);
 
   useEffect(() => {
     async function loadProfile() {

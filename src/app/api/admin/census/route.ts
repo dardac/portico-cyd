@@ -113,7 +113,7 @@ export async function GET(request: Request) {
       {
         error: mapSupabaseError(
           apartmentsError,
-          "No se pudo cargar el censo.",
+          "No se pudo cargar el registro.",
         ),
       },
       { status: 500 },
@@ -131,7 +131,7 @@ export async function GET(request: Request) {
     console.error("Error al cargar respuestas:", censusError.message);
     return NextResponse.json(
       {
-        error: mapSupabaseError(censusError, "No se pudo cargar el censo."),
+        error: mapSupabaseError(censusError, "No se pudo cargar el registro."),
       },
       { status: 500 },
     );
@@ -148,7 +148,7 @@ export async function GET(request: Request) {
     console.error("Error al cargar perfiles:", profileError.message);
     return NextResponse.json(
       {
-        error: mapSupabaseError(profileError, "No se pudo cargar el censo."),
+        error: mapSupabaseError(profileError, "No se pudo cargar el registro."),
       },
       { status: 500 },
     );

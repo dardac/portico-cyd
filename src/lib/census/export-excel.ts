@@ -45,7 +45,7 @@ function flattenApartments(data: CensusExportData) {
           Torre: tower.code,
           Piso: floor.label,
           Apartamento: apartment.code,
-          "Censo respondido": apartment.census ? "Sí" : "No",
+          "Registro respondido": apartment.census ? "Sí" : "No",
           Pernocta: apartment.census
             ? apartment.census.willStayOvernight
               ? "Sí"
@@ -117,9 +117,9 @@ export function downloadCensusExcel(data: CensusExportData) {
   ];
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Censo");
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Registro diario");
 
-  XLSX.writeFile(workbook, `censo-${data.censusDate}.xlsx`, {
+  XLSX.writeFile(workbook, `registro-${data.censusDate}.xlsx`, {
     compression: true,
   });
 }

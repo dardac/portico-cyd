@@ -28,7 +28,7 @@ export function formatCensusDateForCopy(isoDate: string): string {
 
 export function buildCensusCopyText(data: CensusCopyData): string {
   const lines: string[] = [
-    `Censo del día ${formatCensusDateForCopy(data.censusDate)}:`,
+    `Registro del día ${formatCensusDateForCopy(data.censusDate)}:`,
   ];
 
   let hasAny = false;

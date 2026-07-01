@@ -68,7 +68,7 @@ export function LoginForm() {
       }
 
       setIsSuccess(true);
-      router.push("/censo");
+      router.push("/registro");
       router.refresh();
     } catch {
       setErrors({

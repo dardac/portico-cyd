@@ -30,7 +30,7 @@ export function AdminLoginForm() {
         return;
       }
 
-      router.push("/censo");
+      router.push("/registro");
       router.refresh();
     } catch {
       setError("Error de conexión. Intenta de nuevo.");

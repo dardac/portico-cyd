@@ -16,7 +16,7 @@ export default async function UsuariosPage() {
   }
 
   if (!isStaffSession(session) || !hasFullAdminAccess(session)) {
-    redirect("/censo");
+    redirect("/registro");
   }
 
   let users: StaffUserSummary[] = [];
