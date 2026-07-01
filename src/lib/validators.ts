@@ -72,8 +72,28 @@ function parseExceptionBody(value: string): string | null {
   return null;
 }
 
+function isTypingExceptionPrefix(value: string): boolean {
+  return /^[NP]/.test(value) && !/^\d/.test(value);
+}
+
+function formatPartialExceptionInput(value: string): string {
+  const withTower = value.match(/^(NT|PH)(\d{1,3})([A-Z])$/);
+  if (withTower) {
+    return `${withTower[1]}${withTower[2]}-${withTower[3]}`;
+  }
+
+  if (/^(?:N(?:T(?:\d{0,3})?)?|P(?:H(?:\d{0,3})?)?)(?:[A-Z])?$/.test(value)) {
+    return value;
+  }
+
+  return value.replace(/^[NP]+/, "");
+}
+
 export function formatApartmentInput(value: string): string {
-  const cleaned = value.replace(/[^0-9A-Za-z-]/g, "").toUpperCase();
+  const cleaned = value
+    .replace(/[^0-9A-Za-z-]/g, "")
+    .toUpperCase()
+    .replace(/^-+/, "");
 
   if (!cleaned) return "";
 
@@ -94,6 +114,10 @@ export function formatApartmentInput(value: string): string {
 
   const exceptionFormatted = parseExceptionBody(cleaned);
   if (exceptionFormatted !== null) return exceptionFormatted;
+
+  if (isTypingExceptionPrefix(cleaned)) {
+    return formatPartialExceptionInput(cleaned);
+  }
 
   const match = cleaned.match(/^(\d*)([A-Z]?)$/);
   if (!match) return cleaned;

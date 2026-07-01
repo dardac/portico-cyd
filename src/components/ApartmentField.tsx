@@ -41,7 +41,7 @@ export function ApartmentField({
         </p>
       ) : (
         <p id={`${id}-hint`} className="field-hint">
-          Formato: piso + número &quot;-&quot; + torre (ej. 11-D)
+          Formato: piso + unidad + torre (ej. 11-D) o NT/PH + número + torre (ej. PH3-C)
         </p>
       )}
     </div>
