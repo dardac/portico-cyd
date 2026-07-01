@@ -695,7 +695,7 @@
   }
 
   .app-brand {
-    @apply text-sm font-semibold tracking-tight text-brick;
+    @apply text-xl font-semibold tracking-tight text-brick;
   }
 
   .page-title {

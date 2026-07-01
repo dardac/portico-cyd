@@ -20,6 +20,10 @@ export const metadata: Metadata = {
   },
   description: `${APP_NAME}: gestión de residentes y comisiones de reparación del edificio ${BUILDING_NAME}, ${BUILDING_SUBTITLE}.`,
   applicationName: APP_NAME,
+  icons: {
+    icon: [{ url: "/icon.png", type: "image/png", sizes: "32x32" }],
+    apple: [{ url: "/apple-icon.png", type: "image/png", sizes: "180x180" }],
+  },
 };
 
 export default function RootLayout({

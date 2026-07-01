@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { AppLogo } from "@/components/layout/AppLogo";
 import { UserMenu } from "@/components/layout/UserMenu";
 import type { AppSession } from "@/lib/auth/session";
 import {
@@ -72,10 +73,10 @@ export function AppShell({ session, children }: AppShellProps) {
     <div className="app-bg">
       <header className="sticky top-0 z-40 border-b border-stone-200/60 bg-white/80 backdrop-blur-lg">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200/70 text-stone-500 transition hover:border-stone-300 hover:bg-stone-50/80 hover:text-stone-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900/20 md:hidden"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-stone-200/70 text-stone-500 transition hover:border-stone-300 hover:bg-stone-50/80 hover:text-stone-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stone-900/20 md:hidden"
               aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((open) => !open)}
@@ -93,18 +94,22 @@ export function AppShell({ session, children }: AppShellProps) {
               </div>
             </button>
 
-            <div className="flex items-center gap-2.5">
-              <div>
-                <p className="text-xs font-semibold tracking-wide text-brick uppercase">
-                  {APP_NAME}
-                </p>
-                <p className="text-sm font-semibold tracking-tight text-stone-900">
-                  {BUILDING_NAME}
-                </p>
-                <p className="hidden text-xs text-stone-500 sm:block">
-                  {BUILDING_SUBTITLE}
-                </p>
-              </div>
+            <Link
+              href="/registro"
+              className="shrink-0 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brick/30"
+              aria-label={`Ir a inicio de ${APP_NAME}`}
+            >
+              <AppLogo variant="header" priority />
+            </Link>
+
+            <div className="hidden min-w-0 sm:block">
+              <p className="text-xs font-semibold tracking-wide text-brick uppercase">
+                {APP_NAME}
+              </p>
+              <p className="text-sm font-semibold tracking-tight text-stone-900">
+                {BUILDING_NAME}
+              </p>
+              <p className="text-xs text-stone-500">{BUILDING_SUBTITLE}</p>
             </div>
           </div>
 

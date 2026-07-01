@@ -685,7 +685,7 @@ export function AdminCensusDashboard({ staffRole }: AdminCensusDashboardProps) {
       <header className="page-header">
         <div className="page-header-row">
           <div className="page-header-main">
-            <h1 className="page-title">Diario diario</h1>
+            <h1 className="page-title">Registro diario</h1>
             <p className="page-subtitle">Vista por torres y pisos</p>
           </div>
 
