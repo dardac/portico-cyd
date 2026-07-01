@@ -5,6 +5,7 @@ import {
   ApartmentProfileSection,
   type ApartmentProfileSectionHandle,
 } from "@/components/apartment/ApartmentProfileSection";
+import { SuccessAlert } from "@/components/ui/SuccessAlert";
 import { formatDateInCaracas } from "@/lib/dates";
 import { formatCensusPeople } from "@/lib/census/format-people";
 import {
@@ -204,7 +205,7 @@ export function ResidentCensusForm() {
     setSaveError(null);
   }
 
-  const showSaveBar =
+  const showSaveActions =
     isCensusEditing || profileNeedsSave || censusEntry === null;
 
   function validateCensusFields(): string | null {
@@ -367,7 +368,9 @@ export function ResidentCensusForm() {
         />
         <section className="app-card-compact census-form w-full">
           <div className="profile-section-header">
-            <h2 className="section-title min-w-0 flex-1 text-base">Registro de hoy</h2>
+            <h2 className="section-title min-w-0 flex-1 text-base">
+              Registro de hoy
+            </h2>
             {!isCensusEditing && censusEntry && (
               <button
                 type="button"
@@ -663,7 +666,7 @@ export function ResidentCensusForm() {
         <aside className="page-aside" />
       </div>
 
-      {showSaveBar && (
+      {showSaveActions || success ? (
         <div className="save-bar" data-census-feedback>
           {(saveError || success) && (
             <div className="save-bar-feedback">
@@ -672,27 +675,29 @@ export function ResidentCensusForm() {
                   {saveError}
                 </div>
               )}
-              {success && (
-                <div role="status" className="alert-success">
-                  Cambios guardados correctamente.
-                </div>
-              )}
+              <SuccessAlert show={success} onHidden={() => setSuccess(false)}>
+                Cambios guardados correctamente.
+              </SuccessAlert>
             </div>
           )}
+          {showSaveActions && (
+            <>
+              <button
+                type="button"
+                onClick={handleGlobalSave}
+                disabled={isSaving}
+                className="btn-save-global mt-4"
+              >
+                {isSaving ? "Guardando…" : "Guardar cambios"}
+              </button>
 
-          <p className="mb-3 text-xs text-stone-500">
-            Guarda el registro de hoy y los datos de tu apartamento.
-          </p>
-          <button
-            type="button"
-            onClick={handleGlobalSave}
-            disabled={isSaving}
-            className="btn-save-global"
-          >
-            {isSaving ? "Guardando…" : "Guardar cambios"}
-          </button>
+              <p className="mt-2 text-xs text-stone-500">
+                Guarda el registro de hoy y los datos de tu apartamento.
+              </p>
+            </>
+          )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }

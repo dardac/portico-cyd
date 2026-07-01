@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { CreateSupportPostForm } from "@/components/support-board/CreateSupportPostForm";
 import { AppModal } from "@/components/ui/AppModal";
+import { SuccessAlert } from "@/components/ui/SuccessAlert";
 import { formatDateTimeInCaracas } from "@/lib/dates";
 import {
   SUPPORT_CATEGORIES,
@@ -112,7 +113,6 @@ export function SupportBoardList({
 
       if (type === "attend") {
         setSuccessMessage("Publicación marcada como atendida.");
-        window.setTimeout(() => setSuccessMessage(null), 3000);
       }
     } catch {
       setError(
@@ -132,7 +132,6 @@ export function SupportBoardList({
   function handleCreateSuccess(post: SupportPostDto) {
     setCreateModalOpen(false);
     setSuccessMessage("Publicación creada correctamente.");
-    window.setTimeout(() => setSuccessMessage(null), 3000);
 
     const matchesFilter =
       categoryFilter === "all" || post.category === categoryFilter;
@@ -179,11 +178,12 @@ export function SupportBoardList({
         </div>
       </header>
 
-      {successMessage && (
-        <div className="alert-success" role="status">
-          {successMessage}
-        </div>
-      )}
+      <SuccessAlert
+        show={successMessage !== null}
+        onHidden={() => setSuccessMessage(null)}
+      >
+        {successMessage}
+      </SuccessAlert>
 
       <div className="bulletin-filters" role="group" aria-label="Filtrar por categoría">
         <button

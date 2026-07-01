@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreateStaffUserForm } from "@/components/admin/CreateStaffUserForm";
 import { AppModal } from "@/components/ui/AppModal";
+import { SuccessAlert } from "@/components/ui/SuccessAlert";
 import type { StaffUserSummary } from "@/lib/auth/admin-users-api";
 import type { StaffRole } from "@/lib/auth/roles";
 import { getStaffRoleLabel } from "@/lib/auth/roles";
@@ -141,13 +142,11 @@ export function StaffUsersList({ users }: { users: StaffUser[] }) {
   function handlePasswordSuccess(username: string) {
     setPasswordUserId(null);
     setSuccessMessage(`Contraseña actualizada para «${username}».`);
-    window.setTimeout(() => setSuccessMessage(null), 3000);
   }
 
   function handleCreateSuccess() {
     setCreateModalOpen(false);
     setSuccessMessage("Usuario creado correctamente.");
-    window.setTimeout(() => setSuccessMessage(null), 3000);
     router.refresh();
   }
 
@@ -181,11 +180,12 @@ export function StaffUsersList({ users }: { users: StaffUser[] }) {
         </div>
       </header>
 
-      {successMessage && (
-        <div className="alert-success" role="status">
-          {successMessage}
-        </div>
-      )}
+      <SuccessAlert
+        show={successMessage !== null}
+        onHidden={() => setSuccessMessage(null)}
+      >
+        {successMessage}
+      </SuccessAlert>
 
       {users.length === 0 ? (
         <div className="app-card py-12 text-center">

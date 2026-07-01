@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { EditUserProfileForm } from "@/components/auth/EditUserProfileForm";
+import { SuccessAlert } from "@/components/ui/SuccessAlert";
 
 export function EditUserProfilePage() {
   const [saved, setSaved] = useState(false);
@@ -15,11 +16,13 @@ export function EditUserProfilePage() {
         </p>
       </header>
 
-      {saved && (
-        <div className="alert-success mb-6" role="status">
-          Perfil actualizado correctamente.
-        </div>
-      )}
+      <SuccessAlert
+        show={saved}
+        className="mb-6"
+        onHidden={() => setSaved(false)}
+      >
+        Perfil actualizado correctamente.
+      </SuccessAlert>
 
       <div className="rounded-2xl border border-stone-200/80 bg-white p-5 sm:p-6">
         <EditUserProfileForm

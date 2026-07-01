@@ -16,6 +16,7 @@ import {
 } from "@/lib/apartment/infrastructure-status";
 import { getPipeStatusLabel, type PipeStatus } from "@/lib/apartment/pipe-status";
 import { PipeStatusSelector } from "@/components/apartment/PipeStatusSelector";
+import { SuccessAlert } from "@/components/ui/SuccessAlert";
 import { exceedsMaxLength, isValidPhone, MAX_TEXT_FIELD_LENGTH } from "@/lib/validators";
 
 type ProfileEntry = {
@@ -463,11 +464,13 @@ export const ApartmentProfileSection = forwardRef<
         </div>
       )}
 
-      {showLocalFeedback && success && !isEditing && (
-        <div role="status" className="alert-success mt-4">
-          Datos guardados correctamente.
-        </div>
-      )}
+      <SuccessAlert
+        show={showLocalFeedback && success && !isEditing}
+        className="mt-4"
+        onHidden={() => setSuccess(false)}
+      >
+        Datos guardados correctamente.
+      </SuccessAlert>
 
       {isEditing ? (
         <div className="mt-5 space-y-4">

@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { ApartmentField } from "@/components/ApartmentField";
+import { SuccessAlert } from "@/components/ui/SuccessAlert";
 import {
   formatApartmentInput,
   isValidApartment,
@@ -185,12 +186,10 @@ export function RegisterForm({ onSuccess }: RegisterFormProps) {
         </div>
       )}
 
-      {isSuccess && (
-        <div role="status" className="alert-success">
-          Registro completado. Ya puedes iniciar sesión con tu apartamento y
-          contraseña.
-        </div>
-      )}
+      <SuccessAlert show={isSuccess}>
+        Registro completado. Ya puedes iniciar sesión con tu apartamento y
+        contraseña.
+      </SuccessAlert>
 
       <ApartmentField
         id="register-apartment-confirmed"

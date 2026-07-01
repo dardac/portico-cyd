@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ApartmentField } from "@/components/ApartmentField";
+import { SuccessAlert } from "@/components/ui/SuccessAlert";
 import { formatApartmentInput, isValidApartment } from "@/lib/validators";
 
 type FormErrors = {
@@ -87,11 +88,9 @@ export function LoginForm() {
         </div>
       )}
 
-      {isSuccess && (
-        <div role="status" className="alert-success">
-          Acceso correcto. El panel principal llegará en el siguiente paso.
-        </div>
-      )}
+      <SuccessAlert show={isSuccess}>
+        Acceso correcto. El panel principal llegará en el siguiente paso.
+      </SuccessAlert>
 
       <ApartmentField
         id="login-apartment"
