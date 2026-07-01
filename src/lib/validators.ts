@@ -4,6 +4,15 @@ export const MAX_APARTMENT_DIGITS = 3;
 /** Máximo para conteos (adultos, niños, vehículos, mascotas, etc.) */
 export const MAX_COUNT = 99;
 
+export const MAX_EMAIL_LENGTH = 254;
+export const MAX_PHONE_LENGTH = 20;
+export const MAX_TEXT_FIELD_LENGTH = 200;
+export const MAX_PASSWORD_LENGTH = 128;
+
+export function exceedsMaxLength(value: string, max: number): boolean {
+  return value.length > max;
+}
+
 export function limitCountInput(value: string): string {
   return value.replace(/\D/g, "").slice(0, 2);
 }

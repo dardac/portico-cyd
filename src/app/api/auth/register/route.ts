@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import { hashPassword } from "@/lib/auth";
 import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
+import {
+  exceedsMaxLength,
   isValidApartment,
   isValidEmail,
   isValidPhone,
+  MAX_EMAIL_LENGTH,
+  MAX_PASSWORD_LENGTH,
+  MAX_PHONE_LENGTH,
   normalizeApartmentCode,
 } from "@/lib/validators";
 import {
@@ -12,7 +21,19 @@ import {
 } from "@/lib/supabase/server";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 
+const REGISTRATION_BLOCKED_MESSAGE =
+  "No es posible registrar este apartamento. Verifica el código o inicia sesión si ya tienes cuenta.";
+
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(
+    `register:${getClientIp(request)}`,
+    10,
+    60_000,
+  );
+  if (!rateLimit.ok) {
+    return rateLimitResponse(rateLimit.retryAfterSec);
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       {
@@ -55,14 +76,14 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!isValidEmail(email)) {
+  if (!isValidEmail(email) || exceedsMaxLength(email, MAX_EMAIL_LENGTH)) {
     return NextResponse.json(
       { error: "Ingresa un correo electrónico válido." },
       { status: 400 },
     );
   }
 
-  if (!isValidPhone(phone)) {
+  if (!isValidPhone(phone) || exceedsMaxLength(phone, MAX_PHONE_LENGTH)) {
     return NextResponse.json(
       { error: "Ingresa un número de teléfono válido (mínimo 10 dígitos)." },
       { status: 400 },
@@ -72,6 +93,13 @@ export async function POST(request: Request) {
   if (password.length < 8) {
     return NextResponse.json(
       { error: "La contraseña debe tener al menos 8 caracteres." },
+      { status: 400 },
+    );
+  }
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return NextResponse.json(
+      { error: "La contraseña es demasiado larga." },
       { status: 400 },
     );
   }
@@ -97,24 +125,14 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!apartmentRow) {
+  if (
+    !apartmentRow ||
+    !apartmentRow.is_active ||
+    apartmentRow.registered_at
+  ) {
     return NextResponse.json(
-      { error: "Este apartamento no existe en el edificio." },
-      { status: 404 },
-    );
-  }
-
-  if (!apartmentRow.is_active) {
-    return NextResponse.json(
-      { error: "Este apartamento no está habilitado para registro." },
-      { status: 403 },
-    );
-  }
-
-  if (apartmentRow.registered_at) {
-    return NextResponse.json(
-      { error: "Este apartamento ya está registrado." },
-      { status: 409 },
+      { error: REGISTRATION_BLOCKED_MESSAGE },
+      { status: 400 },
     );
   }
 

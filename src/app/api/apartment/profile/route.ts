@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { getValidatedSession } from "@/lib/auth/session";
 import { getTodayInCaracas, getYesterdayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { MAX_COUNT } from "@/lib/validators";
+import { MAX_COUNT, MAX_TEXT_FIELD_LENGTH, exceedsMaxLength } from "@/lib/validators";
 
 function mapEntry(row: {
   occupation: string;
@@ -24,7 +24,7 @@ function mapEntry(row: {
 }
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getValidatedSession();
 
   if (!session || session.type !== "resident") {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
@@ -101,7 +101,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const session = await getSession();
+  const session = await getValidatedSession();
 
   if (!session || session.type !== "resident") {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
@@ -134,6 +134,13 @@ export async function PUT(request: Request) {
     );
   }
 
+  if (exceedsMaxLength(occupation, MAX_TEXT_FIELD_LENGTH)) {
+    return NextResponse.json(
+      { error: "La ocupación es demasiado larga." },
+      { status: 400 },
+    );
+  }
+
   if (typeof hasDisability !== "boolean") {
     return NextResponse.json(
       { error: "Indica si algún ocupante posee discapacidad." },
@@ -144,6 +151,16 @@ export async function PUT(request: Request) {
   if (hasDisability && !disabilityType) {
     return NextResponse.json(
       { error: "Indica qué tipo de discapacidad presenta." },
+      { status: 400 },
+    );
+  }
+
+  if (
+    hasDisability &&
+    exceedsMaxLength(disabilityType, MAX_TEXT_FIELD_LENGTH)
+  ) {
+    return NextResponse.json(
+      { error: "El tipo de discapacidad es demasiado largo." },
       { status: 400 },
     );
   }

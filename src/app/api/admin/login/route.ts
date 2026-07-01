@@ -1,13 +1,28 @@
 import { NextResponse } from "next/server";
 import { verifyPassword } from "@/lib/auth";
 import { setSessionCookie } from "@/lib/auth/session";
+import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import {
   createSupabaseServerClient,
   isSupabaseConfigured,
 } from "@/lib/supabase/server";
+import { MAX_PASSWORD_LENGTH } from "@/lib/validators";
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(
+    `admin-login:${getClientIp(request)}`,
+    10,
+    60_000,
+  );
+  if (!rateLimit.ok) {
+    return rateLimitResponse(rateLimit.retryAfterSec);
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       { error: "La base de datos no está configurada." },
@@ -30,6 +45,13 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Usuario y contraseña son obligatorios." },
       { status: 400 },
+    );
+  }
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return NextResponse.json(
+      { error: "Usuario o contraseña incorrectos." },
+      { status: 401 },
     );
   }
 

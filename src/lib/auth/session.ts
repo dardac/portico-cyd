@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const COOKIE_NAME = "portico_session";
 
@@ -64,6 +65,36 @@ export async function getSession(): Promise<AppSession | null> {
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
   return verifySessionToken(token);
+}
+
+async function isSessionStillValid(session: AppSession): Promise<boolean> {
+  const supabase = createSupabaseServerClient();
+
+  if (session.type === "resident") {
+    const { data } = await supabase
+      .from("apartments")
+      .select("is_active, registered_at")
+      .eq("id", session.apartmentId)
+      .maybeSingle();
+
+    return Boolean(data?.is_active && data.registered_at);
+  }
+
+  const { data } = await supabase
+    .from("admin_users")
+    .select("is_active")
+    .eq("id", session.adminId)
+    .maybeSingle();
+
+  return Boolean(data?.is_active);
+}
+
+/** Verifica JWT y que la cuenta siga activa en la base de datos. */
+export async function getValidatedSession(): Promise<AppSession | null> {
+  const session = await getSession();
+  if (!session) return null;
+  if (!(await isSessionStillValid(session))) return null;
+  return session;
 }
 
 export async function setSessionCookie(session: AppSession) {

@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
+import {
   isValidApartment,
   normalizeApartmentCode,
 } from "@/lib/validators";
@@ -9,7 +14,19 @@ import {
 } from "@/lib/supabase/server";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 
+const REGISTRATION_BLOCKED_MESSAGE =
+  "No es posible registrar este apartamento. Verifica el código o inicia sesión si ya tienes cuenta.";
+
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(
+    `check-apartment:${getClientIp(request)}`,
+    20,
+    60_000,
+  );
+  if (!rateLimit.ok) {
+    return rateLimitResponse(rateLimit.retryAfterSec);
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       {
@@ -68,24 +85,14 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!apartmentRow) {
+  if (
+    !apartmentRow ||
+    !apartmentRow.is_active ||
+    apartmentRow.registered_at
+  ) {
     return NextResponse.json(
-      { error: "Este apartamento no existe en el edificio." },
-      { status: 404 },
-    );
-  }
-
-  if (!apartmentRow.is_active) {
-    return NextResponse.json(
-      { error: "Este apartamento no está habilitado para registro." },
-      { status: 403 },
-    );
-  }
-
-  if (apartmentRow.registered_at) {
-    return NextResponse.json(
-      { error: "Este apartamento ya está registrado. Inicia sesión." },
-      { status: 409 },
+      { error: REGISTRATION_BLOCKED_MESSAGE },
+      { status: 400 },
     );
   }
 

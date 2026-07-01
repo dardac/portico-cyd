@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { getValidatedSession } from "@/lib/auth/session";
 import { getTodayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET() {
-  const session = await getSession();
+  const session = await getValidatedSession();
 
   if (!session || session.type !== "resident") {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });

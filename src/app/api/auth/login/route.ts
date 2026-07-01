@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { verifyPassword } from "@/lib/auth";
 import {
+  checkRateLimit,
+  getClientIp,
+  rateLimitResponse,
+} from "@/lib/rate-limit";
+import {
   isValidApartment,
+  MAX_PASSWORD_LENGTH,
   normalizeApartmentCode,
 } from "@/lib/validators";
 import {
@@ -12,6 +18,15 @@ import { mapSupabaseError } from "@/lib/supabase/errors";
 import { setSessionCookie } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(
+    `login:${getClientIp(request)}`,
+    10,
+    60_000,
+  );
+  if (!rateLimit.ok) {
+    return rateLimitResponse(rateLimit.retryAfterSec);
+  }
+
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
       {
@@ -37,6 +52,13 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Apartamento y contraseña son obligatorios." },
       { status: 400 },
+    );
+  }
+
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return NextResponse.json(
+      { error: "Apartamento o contraseña incorrectos." },
+      { status: 401 },
     );
   }
 
@@ -108,9 +130,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     success: true,
-    apartment: {
-      id: apartmentRow.id,
-      code: apartmentRow.code,
-    },
+    apartment: { code: apartmentRow.code },
   });
 }

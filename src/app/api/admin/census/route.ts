@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth/session";
+import { getValidatedSession } from "@/lib/auth/session";
 import { getTodayInCaracas } from "@/lib/dates";
 import { mapSupabaseError } from "@/lib/supabase/errors";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -49,7 +49,7 @@ function mapProfile(row: ProfileRow) {
 }
 
 export async function GET(request: Request) {
-  const session = await getSession();
+  const session = await getValidatedSession();
 
   if (!session || session.type !== "admin") {
     return NextResponse.json({ error: "No autorizado." }, { status: 401 });
